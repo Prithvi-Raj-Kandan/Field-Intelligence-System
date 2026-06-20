@@ -22,6 +22,16 @@
   color: var(--color-danger);
 }
 
+.debrief-loading__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .debrief-review {
   display: flex;
   flex-direction: column;

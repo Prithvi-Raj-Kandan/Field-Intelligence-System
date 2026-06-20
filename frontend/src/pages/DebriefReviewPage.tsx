@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { saveVisit } from "../api/visits";
+import { getVisitSession, saveVisit } from "../api/visits";
 import { ApiError } from "../api/client";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -62,14 +62,56 @@ function EditableList({
 
 export function DebriefReviewPage() {
   const navigate = useNavigate();
-  const { sessionId, rawNotes, debrief, setDebrief } = useVisitFlow();
+  const { sessionId, rawNotes, debrief, setDebrief, setRawNotes } = useVisitFlow();
   const [local, setLocal] = useState<DebriefResult | null>(debrief);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hydrating, setHydrating] = useState(!debrief);
 
-  if (!sessionId || !local) {
-    navigate("/app/log/debrief/generate", { replace: true });
-    return null;
+  useEffect(() => {
+    if (!sessionId) {
+      navigate("/app/log", { replace: true });
+      return;
+    }
+    if (debrief) {
+      setLocal(debrief);
+      setHydrating(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await getVisitSession(sessionId);
+        if (cancelled) return;
+        if (session.debrief) {
+          setDebrief(session.debrief);
+          setLocal(session.debrief);
+          if (session.raw_notes) setRawNotes(session.raw_notes);
+        } else {
+          navigate("/app/log/debrief/generate", { replace: true });
+        }
+      } catch {
+        if (!cancelled) navigate("/app/log/debrief/generate", { replace: true });
+      } finally {
+        if (!cancelled) setHydrating(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, debrief, setDebrief, setRawNotes, navigate]);
+
+  if (!sessionId || hydrating || !local) {
+    return (
+      <WorkerLayout title="Review debrief" hideNav>
+        <div className="debrief-loading">
+          <div className="debrief-loading__spinner" aria-hidden />
+          <p>Loading debrief…</p>
+        </div>
+      </WorkerLayout>
+    );
   }
 
   const updateSection = (key: SectionKey, items: DebriefItem[]) => {

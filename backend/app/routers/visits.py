@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.middleware.auth import require_role
 from app.models.user import User
-from app.schemas.debrief import VisitStructuredInput
-from app.models.finding import Finding
 from app.models.visit import Visit
-from app.schemas.debrief import DebriefItem
+from app.models.visit_session import VisitSession
+from app.models.finding import Finding
+from app.schemas.debrief import DebriefItem, VisitStructuredInput
 from app.schemas.visit import (
     DebriefResponse,
     GalleryMediaItem,
@@ -19,6 +19,7 @@ from app.schemas.visit import (
     SaveVisitRequest,
     SaveVisitResponse,
     VisitDetail,
+    VisitSessionStatusResponse,
     VisitSummary,
 )
 from app.services.visit_processor import (
@@ -32,6 +33,7 @@ from app.services.visit_session import (
     SessionStateError,
     create_preprocess_session,
     get_session_for_user,
+    load_session_debrief,
     save_visit_from_session,
     structured_from_session,
     update_session_for_debrief,
@@ -160,6 +162,26 @@ def get_my_visit(
     )
 
 
+@router.get("/sessions/{session_id}", response_model=VisitSessionStatusResponse)
+def get_visit_session(
+    session_id: str,
+    current_user: Annotated[User, Depends(field_worker_required)],
+    db: Annotated[Session, Depends(get_db)],
+) -> VisitSessionStatusResponse:
+    """Return workflow session state — recover debrief if generation succeeded but the client errored."""
+    try:
+        session = get_session_for_user(db, session_id, current_user.id)
+    except (SessionNotFoundError, SessionAccessError) as exc:
+        raise _map_session_error(exc) from exc
+
+    return VisitSessionStatusResponse(
+        session_id=session.session_id,
+        status=session.status,
+        raw_notes=session.raw_notes,
+        debrief=load_session_debrief(session),
+    )
+
+
 @router.post(
     "/preprocess",
     response_model=PreprocessVisitResponse,
@@ -268,6 +290,14 @@ async def create_visit_debrief(
         if session.status == "saved":
             raise SessionStateError("Visit session was already saved")
 
+        # Idempotent: a duplicate or retried request returns the stored debrief.
+        existing = load_session_debrief(session)
+        if session.status == "debrief_ready" and existing is not None:
+            if raw_notes is not None:
+                session.raw_notes = raw_notes.strip()
+                db.commit()
+            return DebriefResponse(session_id=session.session_id, debrief=existing)
+
         field_paths, voice_paths = await save_context_media(
             field_photos=_merge_note_uploads(field_photo, field_photos),
             voice_memos=_merge_note_uploads(voice_memo, voice_memos),
@@ -293,6 +323,12 @@ async def create_visit_debrief(
     except (SessionNotFoundError, SessionAccessError, SessionStateError, ValueError) as exc:
         raise _map_session_error(exc) from exc
     except RuntimeError as exc:
+        # If Gemini failed after a concurrent request succeeded, return cached debrief.
+        session = db.get(VisitSession, session_id)
+        if session and session.user_id == current_user.id:
+            cached = load_session_debrief(session)
+            if session.status == "debrief_ready" and cached is not None:
+                return DebriefResponse(session_id=session.session_id, debrief=cached)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Debrief generation failed: {exc}",

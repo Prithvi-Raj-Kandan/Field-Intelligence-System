@@ -82,3 +82,10 @@ export interface VisitFlowState {
   debrief: DebriefResult | null;
   form: VisitFormData | null;
 }
+
+export interface VisitSessionStatus {
+  session_id: string;
+  status: string;
+  raw_notes: string;
+  debrief: DebriefResult | null;
+}

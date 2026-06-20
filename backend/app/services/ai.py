@@ -4,6 +4,7 @@ from typing import Any
 
 from google import genai
 from google.genai import types
+from google.genai.errors import ClientError
 
 from app.config import settings
 from app.schemas.debrief import DebriefResult, VisitStructuredInput
@@ -60,6 +61,16 @@ def _require_api_key() -> str:
 
 def _get_client() -> genai.Client:
     return genai.Client(api_key=_require_api_key())
+
+
+def _gemini_error(exc: ClientError) -> RuntimeError:
+    code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+    if code == 429:
+        return RuntimeError(
+            "Gemini API quota exceeded. Wait a minute and retry — "
+            "your debrief may already be ready if a prior request succeeded."
+        )
+    return RuntimeError(f"Gemini API error: {exc}")
 
 
 def _clean_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
@@ -195,17 +206,20 @@ def transcribe_image(
 
     logger.info("Transcribing image with MIME %s (model=%s)", gemini_mime, model)
 
-    response = client.models.generate_content(
-        model=model,
-        contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type=gemini_mime),
-            user_text,
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=TRANSCRIPTION_PROMPT,
-            temperature=0.2,
-        ),
-    )
+    try:
+        response = client.models.generate_content(
+            model=model,
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=gemini_mime),
+                user_text,
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=TRANSCRIPTION_PROMPT,
+                temperature=0.2,
+            ),
+        )
+    except ClientError as exc:
+        raise _gemini_error(exc) from exc
     text = _extract_response_text(response)
     if not text:
         finish = None
@@ -254,17 +268,20 @@ def transcribe_audio(
 
     logger.info("Transcribing audio with MIME %s (model=%s)", gemini_mime, model)
 
-    response = client.models.generate_content(
-        model=model,
-        contents=[
-            types.Part.from_bytes(data=audio_bytes, mime_type=gemini_mime),
-            user_text,
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=VOICE_TRANSCRIPTION_PROMPT,
-            temperature=0.2,
-        ),
-    )
+    try:
+        response = client.models.generate_content(
+            model=model,
+            contents=[
+                types.Part.from_bytes(data=audio_bytes, mime_type=gemini_mime),
+                user_text,
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=VOICE_TRANSCRIPTION_PROMPT,
+                temperature=0.2,
+            ),
+        )
+    except ClientError as exc:
+        raise _gemini_error(exc) from exc
     text = _extract_response_text(response)
     if not text:
         finish = None
@@ -337,16 +354,19 @@ def generate_debrief(
             if content_parts[:-1]
             else prompt_text
         )
-        response = client.models.generate_content(
-            model=model,
-            contents=request_contents,
-            config=types.GenerateContentConfig(
-                system_instruction=DEBRIEF_SYSTEM_PROMPT,
-                temperature=0.2,
-                response_mime_type="application/json",
-                response_json_schema=schema,
-            ),
-        )
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=request_contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=DEBRIEF_SYSTEM_PROMPT,
+                    temperature=0.2,
+                    response_mime_type="application/json",
+                    response_json_schema=schema,
+                ),
+            )
+        except ClientError as exc:
+            raise _gemini_error(exc) from exc
         raw = response.text or ""
         try:
             return _parse_debrief_json(raw)

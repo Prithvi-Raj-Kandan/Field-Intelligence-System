@@ -6,6 +6,7 @@ import type {
   PreprocessResponse,
   VisitDetail,
   VisitFormData,
+  VisitSessionStatus,
   VisitSummary,
 } from "../types/api";
 
@@ -49,6 +50,10 @@ export async function saveVisit(
       ...(rawNotes ? { raw_notes: rawNotes } : {}),
     }),
   });
+}
+
+export async function getVisitSession(sessionId: string): Promise<VisitSessionStatus> {
+  return apiFetch<VisitSessionStatus>(`/visits/sessions/${sessionId}`);
 }
 
 export async function listMyVisits(): Promise<VisitSummary[]> {

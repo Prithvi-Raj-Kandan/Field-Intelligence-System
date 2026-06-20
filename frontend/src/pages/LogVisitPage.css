@@ -12,6 +12,20 @@
   line-height: 1.5;
 }
 
+.log-visit__resume {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-secondary-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.log-visit__resume p {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
 .log-visit__error {
   color: var(--color-danger);
   font-size: 0.875rem;

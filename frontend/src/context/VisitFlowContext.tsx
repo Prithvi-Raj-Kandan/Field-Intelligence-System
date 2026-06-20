@@ -1,6 +1,8 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { DebriefResult, VisitFlowState, VisitFormData } from "../types/api";
 
+const SESSION_STORAGE_KEY = "field_intel_visit_session_id";
+
 const emptyForm = (): VisitFormData => ({
   location: "",
   visit_date: new Date().toISOString().slice(0, 10),
@@ -24,14 +26,22 @@ interface VisitFlowContextValue extends VisitFlowState {
 const VisitFlowContext = createContext<VisitFlowContextValue | null>(null);
 
 export function VisitFlowProvider({ children }: { children: ReactNode }) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionIdState] = useState<string | null>(() =>
+    sessionStorage.getItem(SESSION_STORAGE_KEY),
+  );
+
+  const setSessionId = (id: string) => {
+    sessionStorage.setItem(SESSION_STORAGE_KEY, id);
+    setSessionIdState(id);
+  };
   const [rawNotes, setRawNotes] = useState("");
   const [needsReview, setNeedsReview] = useState(false);
   const [debrief, setDebrief] = useState<DebriefResult | null>(null);
   const [form, setForm] = useState<VisitFormData | null>(null);
 
   const resetFlow = () => {
-    setSessionId(null);
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    setSessionIdState(null);
     setRawNotes("");
     setNeedsReview(false);
     setDebrief(null);

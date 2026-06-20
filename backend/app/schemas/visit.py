@@ -39,6 +39,15 @@ class SaveVisitResponse(BaseModel):
     message: str = "Visit saved successfully"
 
 
+class VisitSessionStatusResponse(BaseModel):
+    """Workflow session state — used to recover debrief after transient API errors."""
+
+    session_id: str
+    status: str
+    raw_notes: str
+    debrief: DebriefResult | None = None
+
+
 class VisitSummary(BaseModel):
     id: int
     location: str

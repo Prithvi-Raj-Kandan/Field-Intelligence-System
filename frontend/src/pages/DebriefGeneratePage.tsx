@@ -1,17 +1,53 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { generateDebrief } from "../api/visits";
+import { generateDebrief, getVisitSession } from "../api/visits";
 import { ApiError } from "../api/client";
 import { Button } from "../components/Button";
 import { useVisitFlow } from "../context/VisitFlowContext";
 import { WorkerLayout } from "../layouts/WorkerLayout";
+import type { DebriefResult, VisitFormData } from "../types/api";
 import "./DebriefReviewPage.css";
+
+/** One in-flight debrief per session — survives React StrictMode remounts. */
+const inflightDebrief = new Map<string, Promise<DebriefResult>>();
+
+async function recoverDebrief(sessionId: string): Promise<DebriefResult | null> {
+  const session = await getVisitSession(sessionId);
+  if (session.status === "debrief_ready" && session.debrief) {
+    return session.debrief;
+  }
+  return null;
+}
+
+function startDebrief(
+  sessionId: string,
+  rawNotes: string,
+  form: VisitFormData,
+): Promise<DebriefResult> {
+  const existing = inflightDebrief.get(sessionId);
+  if (existing) return existing;
+
+  const promise = generateDebrief(
+    sessionId,
+    rawNotes,
+    form.field_photos,
+    form.voice_memos,
+  )
+    .then((res) => res.debrief)
+    .finally(() => {
+      inflightDebrief.delete(sessionId);
+    });
+
+  inflightDebrief.set(sessionId, promise);
+  return promise;
+}
 
 export function DebriefGeneratePage() {
   const navigate = useNavigate();
   const { sessionId, rawNotes, form, setDebrief, debrief } = useVisitFlow();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
 
   useEffect(() => {
     if (!sessionId || !form) {
@@ -23,21 +59,35 @@ export function DebriefGeneratePage() {
       return;
     }
 
-    let cancelled = false;
+    let showError = true;
+
+    const finishWithDebrief = (result: DebriefResult) => {
+      // Always write to context — provider survives StrictMode remounts.
+      setDebrief(result);
+      navigate("/app/log/debrief", { replace: true });
+    };
+
     (async () => {
       try {
-        const res = await generateDebrief(
-          sessionId,
-          rawNotes,
-          form.field_photos,
-          form.voice_memos,
-        );
-        if (!cancelled) {
-          setDebrief(res.debrief);
-          navigate("/app/log/debrief", { replace: true });
+        const cached = await recoverDebrief(sessionId);
+        if (cached) {
+          finishWithDebrief(cached);
+          return;
         }
+
+        const result = await startDebrief(sessionId, rawNotes, form);
+        finishWithDebrief(result);
       } catch (err) {
-        if (!cancelled) {
+        try {
+          const cached = await recoverDebrief(sessionId);
+          if (cached) {
+            finishWithDebrief(cached);
+            return;
+          }
+        } catch {
+          /* ignore recovery errors */
+        }
+        if (showError) {
           setError(err instanceof ApiError ? err.message : "Debrief generation failed");
           setLoading(false);
         }
@@ -45,9 +95,55 @@ export function DebriefGeneratePage() {
     })();
 
     return () => {
-      cancelled = true;
+      showError = false;
     };
   }, [sessionId, rawNotes, form, debrief, setDebrief, navigate]);
+
+  const handleRecover = async () => {
+    if (!sessionId) return;
+    setRecovering(true);
+    setError("");
+    try {
+      const cached = await recoverDebrief(sessionId);
+      if (cached) {
+        setDebrief(cached);
+        navigate("/app/log/debrief", { replace: true });
+        return;
+      }
+      setError("No debrief found for this session yet. Try generating again in a minute.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load session");
+    } finally {
+      setRecovering(false);
+      setLoading(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!sessionId || !form) return;
+    setLoading(true);
+    setError("");
+    try {
+      const cached = await recoverDebrief(sessionId);
+      if (cached) {
+        setDebrief(cached);
+        navigate("/app/log/debrief", { replace: true });
+        return;
+      }
+      const result = await startDebrief(sessionId, rawNotes, form);
+      setDebrief(result);
+      navigate("/app/log/debrief", { replace: true });
+    } catch (err) {
+      const cached = await recoverDebrief(sessionId).catch(() => null);
+      if (cached) {
+        setDebrief(cached);
+        navigate("/app/log/debrief", { replace: true });
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "Debrief generation failed");
+      setLoading(false);
+    }
+  };
 
   return (
     <WorkerLayout title="Generating debrief" hideNav>
@@ -62,7 +158,20 @@ export function DebriefGeneratePage() {
         {error ? (
           <>
             <p className="debrief-loading__error">{error}</p>
-            <Button onClick={() => navigate("/app/log")}>Start over</Button>
+            <p className="debrief-loading__sub">
+              If processing finished on the server, use &quot;Continue to review&quot; below.
+            </p>
+            <div className="debrief-loading__actions">
+              <Button onClick={handleRecover} loading={recovering}>
+                Continue to review
+              </Button>
+              <Button variant="secondary" onClick={handleRetry}>
+                Retry
+              </Button>
+              <Button variant="ghost" onClick={() => navigate("/app/log")}>
+                Start over
+              </Button>
+            </div>
           </>
         ) : null}
       </div>

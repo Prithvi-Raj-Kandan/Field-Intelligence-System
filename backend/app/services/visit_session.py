@@ -70,6 +70,12 @@ def structured_from_session(session: VisitSession) -> VisitStructuredInput:
     )
 
 
+def load_session_debrief(session: VisitSession) -> DebriefResult | None:
+    if not session.debrief:
+        return None
+    return DebriefResult.model_validate(session.debrief)
+
+
 def update_session_for_debrief(
     db: Session,
     session: VisitSession,

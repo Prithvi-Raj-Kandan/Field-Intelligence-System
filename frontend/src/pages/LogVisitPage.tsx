@@ -1,6 +1,6 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { preprocessVisit } from "../api/visits";
+import { getVisitSession, preprocessVisit } from "../api/visits";
 import { ApiError } from "../api/client";
 import { Button } from "../components/Button";
 import { FileUpload } from "../components/FileUpload";
@@ -22,10 +22,28 @@ const PROGRAM_AREAS = [
 
 export function LogVisitPage() {
   const navigate = useNavigate();
-  const { setSessionId, setRawNotes, setNeedsReview, setForm: saveFormToFlow, resetFlow } = useVisitFlow();
+  const {
+    sessionId,
+    setSessionId,
+    setRawNotes,
+    setNeedsReview,
+    setDebrief,
+    setForm: saveFormToFlow,
+    resetFlow,
+  } = useVisitFlow();
   const [form, setForm] = useState<VisitFormData>(emptyForm());
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingResume, setPendingResume] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    getVisitSession(sessionId)
+      .then((session) => {
+        setPendingResume(session.status === "debrief_ready" && session.debrief !== null);
+      })
+      .catch(() => setPendingResume(false));
+  }, [sessionId]);
 
   const update = <K extends keyof VisitFormData>(key: K, value: VisitFormData[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -39,6 +57,20 @@ export function LogVisitPage() {
       return "Add typed notes or a photo of your notes";
     }
     return null;
+  };
+
+  const handleResumeDebrief = async () => {
+    if (!sessionId) return;
+    try {
+      const session = await getVisitSession(sessionId);
+      if (session.debrief) {
+        setRawNotes(session.raw_notes);
+        setDebrief(session.debrief);
+        navigate("/app/log/debrief");
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not resume visit");
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -76,6 +108,15 @@ export function LogVisitPage() {
           Record structured visit data and free-form notes. Context photos and voice memos are added
           at the debrief step.
         </p>
+
+        {pendingResume ? (
+          <div className="log-visit__resume">
+            <p>You have a debrief ready to review and save.</p>
+            <Button type="button" onClick={handleResumeDebrief}>
+              Continue to debrief review
+            </Button>
+          </div>
+        ) : null}
 
         <TextField
           label="Location"
