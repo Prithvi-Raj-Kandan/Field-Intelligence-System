@@ -79,7 +79,15 @@ cd backend
 alembic upgrade head
 ```
 
-### 6. Verify Postgres connection
+### 6. Seed demo users (S0104+)
+
+```bash
+python scripts/seed_users.py
+```
+
+Demo logins: `worker@ngo.org` / `manager@ngo.org` — password `demo1234`
+
+### 7. Verify Postgres connection
 
 With Docker running:
 

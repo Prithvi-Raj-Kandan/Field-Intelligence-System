@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.middleware.auth import get_current_user
+from app.models.user import User
+from app.routers import auth
 
 app = FastAPI(
     title="Field Intelligence System",
@@ -17,7 +20,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
+
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/auth/me", tags=["auth"])
+def read_current_user(current_user: User = Depends(get_current_user)) -> dict:
+    return {"id": current_user.id, "email": current_user.email, "role": current_user.role}
+
