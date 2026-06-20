@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,10 +19,20 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_expire_minutes: int = 1440
     cors_origins: str = "http://localhost:5173"
+    max_upload_size_mb: int = 10
 
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def upload_path(self) -> Path:
+        path = Path(self.upload_dir)
+        if path.is_absolute():
+            return path
+        # backend/app/config.py -> project root is two levels up
+        project_root = Path(__file__).resolve().parents[2]
+        return (project_root / path).resolve()
 
 
 settings = Settings()
