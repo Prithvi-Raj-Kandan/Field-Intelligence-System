@@ -49,8 +49,19 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # macOS/Linux
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+If you see `WinError 10013` or "address already in use", another server is bound to port 8000 (often a prior `uvicorn` session). Stop it first:
+
+```powershell
+# Find process on port 8000 (Windows)
+netstat -ano | findstr ":8000"
+# Then stop the PID from the rightmost column:
+Stop-Process -Id <PID> -Force
+```
+
+Or use a different port: `uvicorn app.main:app --reload --port 8001`
 
 ### 4. Frontend (from S0115 onward)
 
