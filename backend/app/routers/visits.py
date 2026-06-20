@@ -15,6 +15,7 @@ from app.schemas.debrief import DebriefItem, VisitStructuredInput
 from app.schemas.visit import (
     DebriefResponse,
     GalleryMediaItem,
+    RecordingMediaItem,
     PreprocessVisitResponse,
     SaveVisitRequest,
     SaveVisitResponse,
@@ -105,22 +106,35 @@ def list_my_gallery(
     ).all()
     items: list[GalleryMediaItem] = []
     for visit in visits:
-        for path in visit.note_image_paths or []:
-            items.append(
-                GalleryMediaItem(
-                    visit_id=visit.id,
-                    path=path,
-                    media_type="note",
-                    location=visit.location,
-                    visit_date=visit.visit_date,
-                )
-            )
         for path in visit.field_photo_paths or []:
             items.append(
                 GalleryMediaItem(
                     visit_id=visit.id,
                     path=path,
                     media_type="field",
+                    location=visit.location,
+                    visit_date=visit.visit_date,
+                )
+            )
+    return items
+
+
+@router.get("/mine/recordings", response_model=list[RecordingMediaItem])
+def list_my_recordings(
+    current_user: Annotated[User, Depends(field_worker_required)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[RecordingMediaItem]:
+    """Voice memos from saved field visits."""
+    visits = db.scalars(
+        select(Visit).where(Visit.user_id == current_user.id).order_by(Visit.created_at.desc())
+    ).all()
+    items: list[RecordingMediaItem] = []
+    for visit in visits:
+        for path in visit.voice_memo_paths or []:
+            items.append(
+                RecordingMediaItem(
+                    visit_id=visit.id,
+                    path=path,
                     location=visit.location,
                     visit_date=visit.visit_date,
                 )

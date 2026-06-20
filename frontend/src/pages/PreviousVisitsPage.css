@@ -1,3 +1,16 @@
+.visits-list__filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+@media (min-width: 640px) {
+  .visits-list__filters {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .visits-list__muted {
   color: var(--color-text-secondary);
 }
@@ -26,11 +39,32 @@
 }
 
 .visits-list__card {
+  display: block;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
   box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.visits-list__card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
+
+.visits-list__card strong {
+  color: var(--color-brown);
+}
+
+.visits-list__cta {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
 }
 
 .visits-list__head {

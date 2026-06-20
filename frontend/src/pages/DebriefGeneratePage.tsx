@@ -44,7 +44,7 @@ function startDebrief(
 
 export function DebriefGeneratePage() {
   const navigate = useNavigate();
-  const { sessionId, rawNotes, form, setDebrief, debrief } = useVisitFlow();
+  const { sessionId, rawNotes, form, setDebrief, debrief, setFlowPhase, resetFlow } = useVisitFlow();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
@@ -55,6 +55,7 @@ export function DebriefGeneratePage() {
       return;
     }
     if (debrief) {
+      setFlowPhase("debrief_review");
       navigate("/app/log/debrief", { replace: true });
       return;
     }
@@ -62,8 +63,8 @@ export function DebriefGeneratePage() {
     let showError = true;
 
     const finishWithDebrief = (result: DebriefResult) => {
-      // Always write to context — provider survives StrictMode remounts.
       setDebrief(result);
+      setFlowPhase("debrief_review");
       navigate("/app/log/debrief", { replace: true });
     };
 
@@ -97,7 +98,7 @@ export function DebriefGeneratePage() {
     return () => {
       showError = false;
     };
-  }, [sessionId, rawNotes, form, debrief, setDebrief, navigate]);
+  }, [sessionId, rawNotes, form, debrief, setDebrief, setFlowPhase, navigate]);
 
   const handleRecover = async () => {
     if (!sessionId) return;
@@ -107,6 +108,7 @@ export function DebriefGeneratePage() {
       const cached = await recoverDebrief(sessionId);
       if (cached) {
         setDebrief(cached);
+        setFlowPhase("debrief_review");
         navigate("/app/log/debrief", { replace: true });
         return;
       }
@@ -127,16 +129,19 @@ export function DebriefGeneratePage() {
       const cached = await recoverDebrief(sessionId);
       if (cached) {
         setDebrief(cached);
+        setFlowPhase("debrief_review");
         navigate("/app/log/debrief", { replace: true });
         return;
       }
       const result = await startDebrief(sessionId, rawNotes, form);
       setDebrief(result);
+      setFlowPhase("debrief_review");
       navigate("/app/log/debrief", { replace: true });
     } catch (err) {
       const cached = await recoverDebrief(sessionId).catch(() => null);
       if (cached) {
         setDebrief(cached);
+        setFlowPhase("debrief_review");
         navigate("/app/log/debrief", { replace: true });
         return;
       }
@@ -168,7 +173,7 @@ export function DebriefGeneratePage() {
               <Button variant="secondary" onClick={handleRetry}>
                 Retry
               </Button>
-              <Button variant="ghost" onClick={() => navigate("/app/log")}>
+              <Button variant="ghost" onClick={() => { resetFlow(); navigate("/app/log"); }}>
                 Start over
               </Button>
             </div>

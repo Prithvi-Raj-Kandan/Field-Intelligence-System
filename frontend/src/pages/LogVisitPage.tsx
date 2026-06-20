@@ -24,11 +24,13 @@ export function LogVisitPage() {
   const navigate = useNavigate();
   const {
     sessionId,
+    flowPhase,
     setSessionId,
     setRawNotes,
     setNeedsReview,
     setDebrief,
     setForm: saveFormToFlow,
+    setFlowPhase,
     resetFlow,
   } = useVisitFlow();
   const [form, setForm] = useState<VisitFormData>(emptyForm());
@@ -37,13 +39,16 @@ export function LogVisitPage() {
   const [pendingResume, setPendingResume] = useState(false);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || flowPhase === "completed") {
+      setPendingResume(false);
+      return;
+    }
     getVisitSession(sessionId)
       .then((session) => {
         setPendingResume(session.status === "debrief_ready" && session.debrief !== null);
       })
       .catch(() => setPendingResume(false));
-  }, [sessionId]);
+  }, [sessionId, flowPhase]);
 
   const update = <K extends keyof VisitFormData>(key: K, value: VisitFormData[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -66,6 +71,7 @@ export function LogVisitPage() {
       if (session.debrief) {
         setRawNotes(session.raw_notes);
         setDebrief(session.debrief);
+        setFlowPhase("debrief_review");
         navigate("/app/log/debrief");
       }
     } catch (err) {
@@ -89,6 +95,7 @@ export function LogVisitPage() {
       setRawNotes(res.raw_notes);
       setNeedsReview(res.needs_review);
       saveFormToFlow(form);
+      setFlowPhase(res.needs_review ? "notes_review" : "generating");
       if (res.needs_review) {
         navigate("/app/log/review");
       } else {

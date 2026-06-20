@@ -62,7 +62,7 @@ function EditableList({
 
 export function DebriefReviewPage() {
   const navigate = useNavigate();
-  const { sessionId, rawNotes, debrief, setDebrief, setRawNotes } = useVisitFlow();
+  const { sessionId, rawNotes, debrief, setDebrief, setRawNotes, completeFlow, resetFlow } = useVisitFlow();
   const [local, setLocal] = useState<DebriefResult | null>(debrief);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -123,7 +123,7 @@ export function DebriefReviewPage() {
     setLoading(true);
     try {
       await saveVisit(sessionId, local, rawNotes);
-      setDebrief(local);
+      completeFlow();
       navigate("/app/log/success");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
@@ -152,7 +152,7 @@ export function DebriefReviewPage() {
         {error ? <p className="debrief-review__error">{error}</p> : null}
 
         <div className="debrief-review__actions">
-          <Button variant="secondary" onClick={() => navigate("/app/log")}>
+          <Button variant="secondary" onClick={() => { resetFlow(); navigate("/app/log"); }}>
             Discard
           </Button>
           <Button onClick={handleSave} loading={loading}>

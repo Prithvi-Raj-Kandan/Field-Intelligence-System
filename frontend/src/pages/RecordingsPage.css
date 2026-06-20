@@ -1,0 +1,73 @@
+.recordings__hint {
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-5);
+  font-size: 0.9375rem;
+}
+
+.recordings__muted {
+  color: var(--color-text-secondary);
+}
+
+.recordings__error {
+  color: var(--color-danger);
+}
+
+.recordings__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recordings__item {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recordings__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-decoration: none;
+  color: inherit;
+}
+
+.recordings__header:hover strong {
+  color: var(--color-primary);
+}
+
+.recordings__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.recordings__header strong {
+  color: var(--color-brown);
+}
+
+.recordings__header span {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.recordings__cta {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-top: var(--space-1);
+}
+
+.recordings__player {
+  width: 100%;
+}

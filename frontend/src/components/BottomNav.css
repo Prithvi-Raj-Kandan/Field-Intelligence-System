@@ -30,9 +30,11 @@
   gap: 2px;
   text-decoration: none;
   color: var(--color-text-secondary);
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
   transition: color var(--transition-fast);
+  min-width: 0;
+  padding: 0 var(--space-1);
 }
 
 .bottom-nav__item--active {
@@ -46,4 +48,8 @@
 
 .bottom-nav__label {
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }

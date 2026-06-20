@@ -31,6 +31,13 @@
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--transition-fast);
+}
+
+.gallery__item:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .gallery__item img {
@@ -53,12 +60,5 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-}
-
-.gallery__tag--field {
   color: var(--color-primary);
-}
-
-.gallery__tag--note {
-  color: var(--color-secondary);
 }

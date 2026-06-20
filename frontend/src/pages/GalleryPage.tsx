@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { listGallery } from "../api/visits";
 import { ApiError, mediaUrl } from "../api/client";
 import { WorkerLayout } from "../layouts/WorkerLayout";
@@ -20,23 +21,25 @@ export function GalleryPage() {
   return (
     <WorkerLayout title="Gallery">
       <div className="gallery animate-in">
-        <p className="gallery__hint">Photos from your saved field visits</p>
+        <p className="gallery__hint">Context photos from your saved field visits</p>
         {loading ? <p className="gallery__muted">Loading…</p> : null}
         {error ? <p className="gallery__error">{error}</p> : null}
         {!loading && items.length === 0 ? (
-          <p className="gallery__muted">No photos yet. Save a visit with context photos.</p>
+          <p className="gallery__muted">No context photos yet. Save a visit with field photos.</p>
         ) : null}
         <div className="gallery__grid">
           {items.map((item) => (
-            <figure key={`${item.visit_id}-${item.path}`} className="gallery__item">
-              <img src={mediaUrl(item.path)} alt={`${item.location} — ${item.media_type}`} loading="lazy" />
+            <Link
+              key={`${item.visit_id}-${item.path}`}
+              to={`/app/visits/${item.visit_id}`}
+              className="gallery__item"
+            >
+              <img src={mediaUrl(item.path)} alt={`${item.location} context`} loading="lazy" />
               <figcaption>
-                <span className={`gallery__tag gallery__tag--${item.media_type}`}>
-                  {item.media_type === "field" ? "Context" : "Notes"}
-                </span>
+                <span className="gallery__tag">Context</span>
                 {item.location}
               </figcaption>
-            </figure>
+            </Link>
           ))}
         </div>
       </div>

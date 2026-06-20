@@ -73,6 +73,13 @@ class VisitDetail(VisitSummary):
 class GalleryMediaItem(BaseModel):
     visit_id: int
     path: str
-    media_type: str
+    media_type: str = "field"
+    location: str
+    visit_date: date
+
+
+class RecordingMediaItem(BaseModel):
+    visit_id: int
+    path: str
     location: str
     visit_date: date

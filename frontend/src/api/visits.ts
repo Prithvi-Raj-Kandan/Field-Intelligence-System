@@ -4,6 +4,7 @@ import type {
   DebriefResult,
   GalleryMediaItem,
   PreprocessResponse,
+  RecordingMediaItem,
   VisitDetail,
   VisitFormData,
   VisitSessionStatus,
@@ -66,4 +67,8 @@ export async function getVisit(id: number): Promise<VisitDetail> {
 
 export async function listGallery(): Promise<GalleryMediaItem[]> {
   return apiFetch<GalleryMediaItem[]>("/visits/mine/gallery");
+}
+
+export async function listRecordings(): Promise<RecordingMediaItem[]> {
+  return apiFetch<RecordingMediaItem[]>("/visits/mine/recordings");
 }

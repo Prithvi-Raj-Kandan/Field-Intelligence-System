@@ -56,6 +56,13 @@ export interface VisitDetail extends VisitSummary {
   findings: DebriefItem[];
 }
 
+export interface RecordingMediaItem {
+  visit_id: number;
+  path: string;
+  location: string;
+  visit_date: string;
+}
+
 export interface GalleryMediaItem {
   visit_id: number;
   path: string;

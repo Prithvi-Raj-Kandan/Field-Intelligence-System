@@ -8,7 +8,7 @@ import "./ReviewNotesPage.css";
 
 export function ReviewNotesPage() {
   const navigate = useNavigate();
-  const { sessionId, rawNotes, setRawNotes } = useVisitFlow();
+  const { sessionId, rawNotes, setRawNotes, setFlowPhase } = useVisitFlow();
   const [notes, setNotes] = useState(rawNotes);
   const [error, setError] = useState("");
 
@@ -23,6 +23,7 @@ export function ReviewNotesPage() {
       return;
     }
     setRawNotes(notes);
+    setFlowPhase("generating");
     navigate("/app/log/debrief/generate");
   };
 

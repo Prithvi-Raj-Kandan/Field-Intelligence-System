@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { VisitFlowGuard } from "./components/VisitFlowGuard";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { VisitFlowProvider } from "./context/VisitFlowContext";
 import { DebriefGeneratePage } from "./pages/DebriefGeneratePage";
@@ -10,9 +11,11 @@ import { LogVisitPage } from "./pages/LogVisitPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ManagerPage } from "./pages/ManagerPage";
 import { PreviousVisitsPage } from "./pages/PreviousVisitsPage";
+import { RecordingsPage } from "./pages/RecordingsPage";
 import { ReviewNotesPage } from "./pages/ReviewNotesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SignupPage } from "./pages/SignupPage";
+import { VisitDetailPage } from "./pages/VisitDetailPage";
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -32,12 +35,35 @@ export default function App() {
 
           <Route element={<ProtectedRoute role="field_worker" />}>
             <Route path="/app/log" element={<LogVisitPage />} />
-            <Route path="/app/log/review" element={<ReviewNotesPage />} />
-            <Route path="/app/log/debrief/generate" element={<DebriefGeneratePage />} />
-            <Route path="/app/log/debrief" element={<DebriefReviewPage />} />
+            <Route
+              path="/app/log/review"
+              element={
+                <VisitFlowGuard allowed={["notes_review"]}>
+                  <ReviewNotesPage />
+                </VisitFlowGuard>
+              }
+            />
+            <Route
+              path="/app/log/debrief/generate"
+              element={
+                <VisitFlowGuard allowed={["generating"]}>
+                  <DebriefGeneratePage />
+                </VisitFlowGuard>
+              }
+            />
+            <Route
+              path="/app/log/debrief"
+              element={
+                <VisitFlowGuard allowed={["debrief_review"]}>
+                  <DebriefReviewPage />
+                </VisitFlowGuard>
+              }
+            />
             <Route path="/app/log/success" element={<SuccessPage />} />
             <Route path="/app/visits" element={<PreviousVisitsPage />} />
+            <Route path="/app/visits/:visitId" element={<VisitDetailPage />} />
             <Route path="/app/gallery" element={<GalleryPage />} />
+            <Route path="/app/recordings" element={<RecordingsPage />} />
             <Route path="/app/settings" element={<SettingsPage />} />
           </Route>
 
