@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     storage_backend: str = "local"
     upload_dir: str = "./uploads"
     gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
     jwt_secret: str = "change-me-in-production"
     jwt_expire_minutes: int = 1440
     cors_origins: str = "http://localhost:5173"

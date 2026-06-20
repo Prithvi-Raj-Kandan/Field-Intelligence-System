@@ -38,8 +38,28 @@ A detailed, Jira-style reference for building the Field Visit Debrief Tool acros
 NGO field workers conduct programs, speak with communities about problems, and meet stakeholders. Every visit produces rich but **unstructured** data. This tool lets them:
 
 1. **Log** structured metadata (location, date, program area, stakeholders) plus unstructured input (free-form notes, photos of handwritten notes; voice memos = stretch).
-2. **Review** AI-generated transcription and a structured debrief (key findings, blockers, community sentiment, follow-ups) before saving.
-3. **Surface patterns** on a manager dashboard — recurring blockers by geography/program, sentiment trends — via SQL aggregation, not ML.
+2. **Review** AI-generated transcription and a structured **debrief summary** built from **both structured form data and unstructured notes**. The debrief has four sections — key findings, blockers observed, community sentiment, suggested follow-ups — which the field worker confirms before saving.
+3. **Surface patterns** on a manager dashboard — the four debrief sections map directly to dashboard metrics (sentiment trends, recurring blockers, follow-up themes) via SQL aggregation, not ML.
+
+### Debrief summary contract (drives dashboard)
+
+The AI debrief is **not** generated from notes alone. Gemini receives:
+
+| Input type | Fields |
+|---|---|
+| **Structured** | location, visit_date, program_area, stakeholders |
+| **Unstructured** | free-form notes, photo transcription (voice = stretch) |
+
+And returns four sections:
+
+| Debrief section (UI) | API / JSON field | Stored for analytics |
+|---|---|---|
+| Key findings | `findings[]` | `findings` rows (`type=finding`) |
+| Blockers observed | `blockers[]` | `findings` rows (`type=blocker`) — powers recurring blocker charts |
+| Community sentiment | `sentiment` | `visits.sentiment` — powers sentiment trend line |
+| Suggested follow-ups | `follow_ups[]` | `findings` rows (`type=follow_up`) |
+
+Structured visit fields (`location`, `program_area`, `visit_date`) are also used directly for dashboard **filters and grouping** alongside debrief outputs.
 
 ### User roles
 
@@ -576,30 +596,42 @@ Return only the transcribed text, no preamble.
 
 ---
 
-### Debrief extraction (text-only structured output)
+### Debrief extraction (structured + unstructured → four sections)
+
+**Inputs sent to Gemini:**
+
+1. **Structured visit data:** location, visit_date, program_area, stakeholders
+2. **Unstructured notes:** confirmed raw_notes (typed and/or transcribed from photos)
 
 **System prompt:**
 ```
-You are an NGO field intelligence assistant. Given raw field visit notes,
-extract a structured debrief. Return ONLY valid JSON matching this schema:
+You are an NGO field intelligence assistant. Produce a structured debrief summary
+from BOTH structured visit metadata AND unstructured field notes.
 
-{
-  "sentiment": "positive" | "neutral" | "negative",
-  "findings": [{ "type": "finding", "text": "...", "source": "text"|"photo" }],
-  "blockers": [{ "type": "blocker", "text": "...", "source": "text"|"photo" }],
-  "follow_ups": [{ "type": "follow_up", "text": "...", "source": "text"|"photo" }]
-}
+Your output has exactly four sections (these drive the manager analytics dashboard):
+1. Key findings — important observations, community feedback, program outcomes
+2. Blockers observed — obstacles preventing progress (infrastructure, bureaucracy, funding, access)
+3. Community sentiment — overall community mood: positive, neutral, or negative
+4. Suggested follow-ups — concrete next actions with owners/timeframes when mentioned
 
 Rules:
-- findings: key observations, community feedback, program outcomes
-- blockers: obstacles preventing progress (infrastructure, bureaucracy, funding, access)
-- follow_ups: concrete next actions with owners/timeframes where mentioned
-- sentiment: overall community mood based on the visit
-- Keep each item to one clear sentence
-- source: "photo" if likely from transcribed handwriting, "text" if from typed notes
+- Use structured metadata to contextualize items
+- Use unstructured notes as primary evidence; do not invent facts
+- Keep each list item to one clear sentence
+- source: "photo" if mainly from transcribed handwriting, else "text"
 ```
 
-**Model:** `gemini-2.0-flash` (multimodal transcription + text extraction) via the [Google Gen AI SDK](https://googleapis.github.io/python-genai/) (`google-genai`).
+**JSON schema (API field names):**
+```json
+{
+  "sentiment": "positive | neutral | negative",
+  "findings": [{ "type": "finding", "text": "...", "source": "text|photo" }],
+  "blockers": [{ "type": "blocker", "text": "...", "source": "text|photo" }],
+  "follow_ups": [{ "type": "follow_up", "text": "...", "source": "text|photo" }]
+}
+```
+
+**Model:** `gemini-2.5-flash` (default; override via `GEMINI_MODEL`) via the [Google Gen AI SDK](https://googleapis.github.io/python-genai/) (`google-genai`).
 
 **SDK setup:**
 ```python
@@ -859,8 +891,9 @@ Isolated AI service using the **Gemini API** with two functions: `transcribe_ima
 **Acceptance Criteria**
 
 - [ ] Uses `google-genai` SDK with `GEMINI_API_KEY` from config
-- [ ] `transcribe_image(image_bytes, context)` sends image + prompt to Gemini; returns plain text
-- [ ] `generate_debrief(raw_notes, metadata)` returns validated JSON per Section 6
+- [ ] `transcribe_image(image_bytes, context)` sends image + structured context to Gemini; returns plain text
+- [ ] `generate_debrief(raw_notes, structured, has_photo_notes)` uses **both** structured metadata and unstructured notes
+- [ ] Returns four sections: key findings, blockers observed, community sentiment, suggested follow-ups
 - [ ] JSON parse failure triggers one retry with repair prompt
 - [ ] Standalone test script runs successfully with sample input
 
