@@ -96,3 +96,66 @@ export interface VisitSessionStatus {
   raw_notes: string;
   debrief: DebriefResult | null;
 }
+
+export interface InsightQueryParams {
+  date_from?: string;
+  date_to?: string;
+  program_area?: string;
+  location?: string;
+}
+
+export interface InsightSummary {
+  total_visits: number;
+  negative_sentiment_pct: number;
+  most_common_blocker: string | null;
+  most_common_blocker_count: number;
+}
+
+export interface BlockerInsightItem {
+  group: string;
+  blocker_text: string;
+  count: number;
+}
+
+export interface BlockerInsightsResponse {
+  items: BlockerInsightItem[];
+}
+
+export interface SentimentTrendItem {
+  period: string;
+  positive: number;
+  neutral: number;
+  negative: number;
+}
+
+export interface SentimentTrendResponse {
+  items: SentimentTrendItem[];
+}
+
+export interface VisitListItem extends VisitSummary {
+  blocker_count: number;
+}
+
+export interface PaginatedVisitsResponse {
+  items: VisitListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface FindingDetail extends DebriefItem {
+  id: number;
+  category: string | null;
+}
+
+export interface ManagerVisitDetail extends VisitSummary {
+  stakeholders: string;
+  raw_notes: string;
+  note_image_paths: string[];
+  field_photo_paths: string[];
+  voice_memo_paths: string[];
+  note_image_urls: string[];
+  field_photo_urls: string[];
+  voice_memo_urls: string[];
+  findings: FindingDetail[];
+}

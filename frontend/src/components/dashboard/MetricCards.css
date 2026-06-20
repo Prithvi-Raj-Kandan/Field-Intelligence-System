@@ -1,0 +1,76 @@
+.metric-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.metric-cards--empty {
+  display: block;
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-lg);
+}
+
+.metric-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.metric-card--loading {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.metric-card--warning {
+  border-color: rgba(180, 83, 9, 0.25);
+  background: #fffbf5;
+}
+
+.metric-card--accent {
+  border-color: rgba(27, 67, 50, 0.2);
+  background: var(--color-secondary-light);
+}
+
+.metric-card__label {
+  margin: 0 0 var(--space-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.metric-card__value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+.metric-card__value--small {
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.metric-card__sub {
+  margin: var(--space-2) 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 767px) {
+  .metric-cards {
+    grid-template-columns: 1fr;
+  }
+}

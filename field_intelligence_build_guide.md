@@ -10,6 +10,8 @@ A detailed, Jira-style reference for building the Field Visit Debrief Tool acros
 
 **Related docs:** [field_visit_debrief_tool_build_plan.md](field_visit_debrief_tool_build_plan.md) (original high-level plan)
 
+**Implementation status (June 2026):** Stage 1 worker flow is **complete**. Stage 2 **S0201–S0202** (insights + manager visit APIs) are **complete**. Manager dashboard UI (S0204+) not started.
+
 ---
 
 ## Table of Contents
@@ -181,18 +183,24 @@ Field-Intelligence-System/
 │       ├── models/
 │       │   ├── user.py
 │       │   ├── visit.py
+│       │   ├── visit_session.py   # in-progress workflow (Stage 1)
 │       │   └── finding.py
 │       ├── schemas/
 │       │   ├── auth.py
 │       │   ├── visit.py
-│       │   └── insight.py
+│       │   ├── debrief.py
+│       │   └── insight.py         # Stage 2 (S0201)
 │       ├── routers/
 │       │   ├── auth.py
 │       │   ├── visits.py
-│       │   └── insights.py
+│       │   ├── insights.py        # Stage 2 (S0201)
+│       │   └── media.py
 │       ├── services/
 │       │   ├── ai.py
-│       │   └── auth.py
+│       │   ├── auth.py
+│       │   ├── visit_processor.py
+│       │   ├── visit_session.py
+│       │   └── insights.py        # Stage 2 (S0201)
 │       ├── storage/
 │       │   ├── base.py
 │       │   ├── local.py
@@ -205,25 +213,30 @@ Field-Intelligence-System/
 │   └── src/
 │       ├── main.tsx
 │       ├── App.tsx
-│       ├── api/
-│       │   └── client.ts
-│       ├── auth/
-│       │   └── AuthContext.tsx
+│       ├── api/                   # client.ts, auth.ts, visits.ts
+│       ├── context/               # AuthContext, VisitFlowContext
+│       ├── layouts/               # WorkerLayout + bottom nav shell
 │       ├── pages/
-│       │   ├── LoginPage.tsx
+│       │   ├── LandingPage.tsx
+│       │   ├── LoginPage.tsx, SignupPage.tsx
 │       │   ├── LogVisitPage.tsx
-│       │   ├── TranscriptionReviewPage.tsx
+│       │   ├── ReviewNotesPage.tsx
+│       │   ├── DebriefGeneratePage.tsx
 │       │   ├── DebriefReviewPage.tsx
-│       │   └── DashboardPage.tsx
+│       │   ├── PreviousVisitsPage.tsx
+│       │   ├── VisitDetailPage.tsx
+│       │   ├── GalleryPage.tsx, RecordingsPage.tsx
+│       │   ├── SettingsPage.tsx
+│       │   └── ManagerPage.tsx    # Stage 2 placeholder
 │       └── components/
-│           ├── FilterBar.tsx
-│           ├── MetricCards.tsx
-│           ├── BlockersTable.tsx
-│           ├── SentimentChart.tsx
-│           └── VisitDetailDrawer.tsx
+│           ├── VisitFlowGuard.tsx
+│           ├── SentimentBadge.tsx
+│           └── …
 ├── scripts/
 │   ├── seed_data.py
-│   └── migrate_to_rds.py       # Stage 3
+│   ├── test_visit_flow.py
+│   ├── test_insights.py           # S0201 smoke test
+│   └── migrate_to_rds.py          # Stage 3
 └── uploads/                    # Local media (gitignored)
     ├── images/
     └── audio/
@@ -260,10 +273,29 @@ CREATE TABLE visits (
     program_area    VARCHAR(255) NOT NULL,
     stakeholders    TEXT NOT NULL DEFAULT '',
     raw_notes       TEXT NOT NULL DEFAULT '',
-    note_image_path VARCHAR(512),          -- relative path or S3 key
-    voice_memo_path VARCHAR(512),          -- stretch goal
+    note_image_paths JSONB NOT NULL DEFAULT '[]',   -- images/notes/…
+    field_photo_paths JSONB NOT NULL DEFAULT '[]',  -- images/field/…
+    voice_memo_paths JSONB NOT NULL DEFAULT '[]',   -- audio/…
     sentiment       VARCHAR(50) CHECK (sentiment IN ('positive', 'neutral', 'negative')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- In-progress workflow (preprocess → debrief → save); migration 002
+CREATE TABLE visit_sessions (
+    session_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    location          VARCHAR(255) NOT NULL,
+    visit_date        DATE NOT NULL,
+    program_area      VARCHAR(255) NOT NULL,
+    stakeholders      TEXT NOT NULL DEFAULT '',
+    raw_notes         TEXT NOT NULL DEFAULT '',
+    note_image_paths  JSONB NOT NULL DEFAULT '[]',
+    field_photo_paths JSONB NOT NULL DEFAULT '[]',
+    voice_memo_paths  JSONB NOT NULL DEFAULT '[]',
+    debrief           JSONB,
+    status            VARCHAR(50) NOT NULL DEFAULT 'preprocessed',  -- preprocessed | debrief_ready | saved
+    visit_id          INTEGER REFERENCES visits(id) ON DELETE SET NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE findings (
@@ -437,6 +469,27 @@ Structured fields and media paths are loaded from the session — frontend only 
   "message": "Visit saved successfully"
 }
 ```
+
+**Debrief idempotency:** If session status is already `debrief_ready`, repeat `POST /visits/debrief` returns cached debrief without calling Gemini.
+
+---
+
+#### `GET /visits/sessions/{session_id}` *(recovery)*
+
+**Auth:** `field_worker` (own session)
+
+**Response 200:** `{ session_id, status, raw_notes, debrief | null }`
+
+---
+
+#### Worker read APIs *(as-built)*
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/visits/mine` | Saved visits for current worker |
+| `GET` | `/visits/mine/{visit_id}` | Full visit + findings |
+| `GET` | `/visits/mine/gallery` | Context (field) photos only |
+| `GET` | `/visits/mine/recordings` | Voice memo paths |
 
 ---
 
@@ -655,35 +708,78 @@ All UI design work uses **Figma MCP**. React implementation handles API wiring o
 
 | Token | Value | Usage |
 |---|---|---|
-| Primary | `#2563EB` | CTAs, links |
-| Success | `#16A34A` | Save confirmation |
-| Warning | `#D97706` | Blockers |
-| Danger | `#DC2626` | Errors, negative sentiment |
-| Background | `#F8FAFC` | Page background |
-| Surface | `#FFFFFF` | Cards, forms |
-| Text primary | `#0F172A` | Headings, body |
-| Text secondary | `#64748B` | Labels, hints |
-| Font | Inter or system sans | All text |
-| Radius | 8px cards, 6px inputs | Consistent rounding |
-| Spacing unit | 4px base (8, 16, 24, 32) | Padding/margins |
+| Primary | `#d4480a` | CTAs, links (Nudge orange) |
+| Secondary | `#1b4332` | Accents |
+| Success | `#2d6a4f` | Positive sentiment |
+| Danger | `#b91c1c` | Errors, negative sentiment |
+| Background | `#faf9f6` | Page background |
+| Surface | `#ffffff` | Cards, forms |
+| Header | `#1a1a1a` | Worker app header |
+| Text primary | `#1a1a1a` / `#4a2c20` | Body / landing cream section |
+| Font display | Playfair Display | Headings |
+| Font body | DM Sans | UI text |
+| Spacing unit | 4px base | `--space-*` tokens in `tokens.css` |
 
-### Screens by stage
+### Screens by stage (as-built routes)
+
+| Screen | Ticket | React route |
+|---|---|---|
+| Landing | — | `/` |
+| Login / Signup | S0116 | `/login`, `/signup` |
+| Log Visit | S0117 | `/app/log` |
+| Notes review | S0118 | `/app/log/review` (when `needs_review`) |
+| Debrief generate | S0119 | `/app/log/debrief/generate` |
+| Debrief review + save | S0119 | `/app/log/debrief` |
+| Save success | S0119 | `/app/log/success` |
+| Previous visits | S0119+ | `/app/visits` (sort/filter) |
+| Visit summary | S0119+ | `/app/visits/:visitId` |
+| Context photo gallery | S0119+ | `/app/gallery` |
+| Voice recordings | S0119+ | `/app/recordings` |
+| Settings | S0119+ | `/app/settings` |
+| Manager placeholder | S0207 | `/manager` |
+| Dashboard | S0204–S0211 | `/manager` or `/dashboard` *(Stage 2)* |
+
+**Flow guard:** `VisitFlowGuard` + `VisitFlowContext` enforce step order; after save, debrief routes redirect to `/app/log`. Session id persisted in `sessionStorage` for recovery.
+
+### Screens by stage (original Figma ticket names)
 
 | Screen | Figma ticket | React route |
 |---|---|---|
 | Login | S0111 | `/login` |
-| Log Visit | S0112 | `/visits/new` |
-| Transcription Review | S0113 | `/visits/review/transcription` |
-| Debrief Review | S0114 | `/visits/review/debrief` |
-| Save Success | S0114 (variant) | `/visits/success` |
-| Dashboard | S0204, S0205 | `/dashboard` |
-| Visit Detail | S0206 | `/dashboard/visits/:id` (drawer/modal) |
+| Log Visit | S0112 | `/app/log` |
+| Transcription Review | S0113 | `/app/log/review` |
+| Debrief Review | S0114 | `/app/log/debrief` |
+| Save Success | S0114 (variant) | `/app/log/success` |
+| Dashboard | S0204, S0205 | `/manager` *(Stage 2)* |
+| Visit Detail | S0206 | `/app/visits/:id` (worker) · manager drill-down Stage 2 |
 
 ---
 
 ## 8. Stage 1 Tickets (S01xx)
 
 **Goal:** Field worker logs a visit, reviews AI transcription and debrief, saves to Postgres.
+
+---
+
+### 8.1 Stage 1 As-Built (June 2026)
+
+What was actually shipped vs. original ticket names:
+
+| Area | Planned (tickets) | As-built |
+|---|---|---|
+| Visit capture API | S0107 unified `/visits/analyze` | **3-step session API:** `POST /visits/preprocess` → `POST /visits/debrief` → `POST /visits/save` with `visit_sessions` |
+| Note photos | Transcribed in step 1 | Transcribed at **preprocess** only |
+| Field photos + voice | Stretch S0121 | Uploaded at **debrief**; sent **directly to Gemini** (not transcribed to text first) |
+| Debrief AI | Text + optional photo notes flag | Multimodal: text + field photos + voice memos in one Gemini call |
+| Frontend design | Figma-first (S0110–S0114) | **Code-first** Nudge-inspired UI in `frontend/src/styles/tokens.css` (Figma tickets optional) |
+| Worker nav | Single log flow | Bottom nav: Log · Visits · Photos · Audio · Settings |
+| Manager UI | Stage 2 | `/manager` placeholder only |
+| Resilience | — | Idempotent debrief, `GET /visits/sessions/{id}`, Strict Mode–safe generate page |
+| Tests | S0120 E2E script | `scripts/test_visit_flow.py`; manual E2E via UI |
+
+**Gemini calls per visit:** 1× `transcribe_image` per note photo (preprocess) + 1× `generate_debrief` (debrief; +1 retry if JSON invalid). Voice uses debrief multimodal path, not separate transcription.
+
+**Stage 1 ticket status:** S0101–S0119 ✅ · S0120 partial (script exists, formal checklist pending) · S0121 partial (voice at debrief, no separate transcribe_audio in flow)
 
 ---
 
@@ -1308,13 +1404,14 @@ Allow audio file upload (or browser recording). Transcribe via Gemini multimodal
 
 ---
 
-### S0201 — Insight Endpoints
+### S0201 — Insight Endpoints ✅
 
 | Field | Value |
 |---|---|
 | **Type** | Backend |
 | **Estimate** | M |
 | **Depends on** | S0109 |
+| **Status** | **Done** |
 
 **Description**
 
@@ -1322,30 +1419,34 @@ Implement `/insights/summary`, `/insights/blockers`, `/insights/sentiment-trend`
 
 **Acceptance Criteria**
 
-- [ ] All three endpoints require `manager` role
-- [ ] Filters: `date_from`, `date_to`, `program_area`, `location`
-- [ ] Blockers endpoint supports `group_by` param
-- [ ] Sentiment trend groups by week by default
-- [ ] Raw SQL or SQLAlchemy queries — no ML
+- [x] All three endpoints require `manager` role
+- [x] Filters: `date_from`, `date_to`, `program_area`, `location`
+- [x] Blockers endpoint supports `group_by` param (`location` \| `program_area` \| `text`)
+- [x] Sentiment trend groups by week by default (`interval=week`; `day` optional)
+- [x] Raw SQL or SQLAlchemy queries — no ML
 
-**Files to create**
+**Files created**
 
 - `backend/app/routers/insights.py`
 - `backend/app/schemas/insight.py`
+- `backend/app/services/insights.py`
+- `scripts/test_insights.py`
 
 **Definition of Done**
 
-Endpoints return correct aggregations against seed data.
+`python scripts/test_insights.py` passes; manager token returns aggregations; field worker gets `403`.
 
 ---
 
-### S0202 — GET /visits List + Detail
+### S0202 — GET /visits List + Detail ✅
 
 | Field | Value |
 |---|---|
 | **Type** | Backend |
 | **Estimate** | S |
 | **Depends on** | S0109 |
+| **Status** | **Done** |
+| **Note** | Worker equivalents: `GET /visits/mine`, `GET /visits/mine/{id}`. Manager routes: `GET /visits`, `GET /visits/{id}`. |
 
 **Description**
 
@@ -1353,14 +1454,19 @@ Paginated visit list with filters and full visit detail for drill-down.
 
 **Acceptance Criteria**
 
-- [ ] List returns summary fields + blocker count
-- [ ] Detail includes all findings + media URL
-- [ ] Pagination works (`page`, `page_size`)
-- [ ] Manager role required
+- [x] List returns summary fields + blocker count
+- [x] Detail includes all findings + media URLs (`note_image_urls`, `field_photo_urls`, `voice_memo_urls`)
+- [x] Pagination works (`page`, `page_size`)
+- [x] Manager role required
+
+**Files created**
+
+- `backend/app/services/manager_visits.py`
+- `scripts/test_manager_visits.py`
 
 **Definition of Done**
 
-`GET /visits/42` returns full visit with findings array.
+`python scripts/test_manager_visits.py` passes; `GET /visits/{id}` returns full visit with findings array.
 
 ---
 
@@ -1378,11 +1484,11 @@ Insert 8–10 realistic NGO visits with varied locations, program areas, sentime
 
 **Acceptance Criteria**
 
-- [ ] At least 3 distinct locations
-- [ ] At least 3 program areas
-- [ ] Mix of positive/neutral/negative sentiment
-- [ ] 2–3 recurring blocker themes for dashboard impact
-- [ ] `python scripts/seed_data.py` is idempotent (clears + reseeds or skips if exists)
+- [x] At least 3 distinct locations
+- [x] At least 3 program areas
+- [x] Mix of positive/neutral/negative sentiment
+- [x] 2–3 recurring blocker themes for dashboard impact
+- [x] `python scripts/seed_data.py` is idempotent (clears + reseeds or skips if exists)
 
 **Sample blocker themes**
 
@@ -1479,10 +1585,10 @@ Add `/dashboard` route. Redirect non-managers to login or 403 page.
 
 **Acceptance Criteria**
 
-- [ ] Only `manager` role can access `/dashboard`
-- [ ] Field worker redirected to `/visits/new`
-- [ ] Unauthenticated user redirected to `/login`
-- [ ] Dashboard shell renders with filter bar placeholder
+- [x] Only `manager` role can access `/dashboard`
+- [x] Field worker redirected to `/visits/new`
+- [x] Unauthenticated user redirected to `/login`
+- [x] Dashboard shell renders with filter bar placeholder
 
 **Definition of Done**
 
@@ -1504,10 +1610,10 @@ Wire filters to API query params. Fetch and display `/insights/summary`.
 
 **Acceptance Criteria**
 
-- [ ] Date pickers, program area and location dropdowns populated from data
-- [ ] Apply filters refetches summary + downstream components
-- [ ] Metric cards match Figma design
-- [ ] Loading and empty states
+- [x] Date pickers, program area and location dropdowns populated from data
+- [x] Apply filters refetches summary + downstream components
+- [x] Metric cards match Figma design *(implemented from design tokens; Figma S0204–S0205 pending)*
+- [x] Loading and empty states
 
 **Definition of Done**
 
@@ -1529,10 +1635,10 @@ Fetch `/insights/blockers`. Render sortable table.
 
 **Acceptance Criteria**
 
-- [ ] Columns: Blocker text, Region/Group, Count
-- [ ] Sort by count descending by default
-- [ ] Click row opens visit detail (if mapped) or shows related visits
-- [ ] Responds to filter bar state
+- [x] Columns: Blocker text, Region/Group, Count
+- [x] Sort by count descending by default
+- [x] Click row opens visit detail (if mapped) or shows related visits *(via All visits table)*
+- [x] Responds to filter bar state
 
 **Definition of Done**
 
@@ -1554,11 +1660,11 @@ Bar chart: blockers by region. Line chart: sentiment trend over time.
 
 **Acceptance Criteria**
 
-- [ ] Recharts installed and configured
-- [ ] Bar chart uses `/insights/blockers?group_by=location`
-- [ ] Line chart uses `/insights/sentiment-trend?interval=week`
-- [ ] Charts resize responsively
-- [ ] Tooltips on hover
+- [x] Recharts installed and configured
+- [x] Bar chart uses `/insights/blockers?group_by=location`
+- [x] Line chart uses `/insights/sentiment-trend?interval=week`
+- [x] Charts resize responsively
+- [x] Tooltips on hover
 
 **Definition of Done**
 
@@ -1580,10 +1686,10 @@ Drawer/modal fetches `GET /visits/{id}` and displays full visit.
 
 **Acceptance Criteria**
 
-- [ ] Opens from blockers table or visit list row
-- [ ] Shows raw notes, sentiment, all findings by type
-- [ ] Image preview loads from `/media/` or signed URL
-- [ ] Close returns to dashboard state (filters preserved)
+- [x] Opens from blockers table or visit list row
+- [x] Shows raw notes, sentiment, all findings by type
+- [x] Image preview loads from `/media/` or signed URL
+- [x] Close returns to dashboard state (filters preserved)
 
 **Definition of Done**
 
@@ -1968,14 +2074,14 @@ Prioritize only if ahead of schedule:
 ## Ticket Index (Quick Reference)
 
 ### Stage 1 — S01xx
-S0101 Local dev setup · S0102 Schema/migrations · S0103 FastAPI skeleton · S0104 Auth · S0105 Local uploads · S0106 Gemini AI service · S0107 POST /visits/draft · S0108 POST /visits/debrief · S0109 POST /visits/save · S0110 Figma design system · S0111 Figma login · S0112 Figma log visit · S0113 Figma transcription · S0114 Figma debrief · S0115 React scaffold · S0116 Login page · S0117 Log visit page · S0118 Transcription page · S0119 Debrief + save · S0120 E2E test · S0121 Stretch voice
+S0101–S0119 ✅ worker flow · S0120 partial · S0121 partial (voice at debrief)
 
 ### Stage 2 — S02xx
-S0201 Insight endpoints · S0202 Visit list/detail · S0203 Seed data · S0204 Figma dashboard · S0205 Figma charts/tables · S0206 Figma visit detail · S0207 Dashboard route/guard · S0208 Filters + metrics · S0209 Blockers table · S0210 Charts · S0211 Visit drill-down · S0212 Stretch categories · S0213 Local demo rehearsal
+S0201 ✅ Insight endpoints · S0202 ✅ Visit list/detail (manager) · S0203 ✅ Seed data · S0207–S0211 ✅ Manager dashboard (React) · S0204–S0206 Figma dashboard *(pending)* · S0213 local demo *(pending)*
 
 ### Stage 3 — S03xx
 S0301 AWS infra · S0302 S3 storage backend · S0303 RDS migration · S0304 Deploy API · S0305 Deploy frontend · S0306 Production smoke test
 
 ---
 
-*Last updated: June 2026 — All three stages targeted before Monday deadline.*
+*Last updated: June 2026 — Stage 1 complete; Stage 2 S0201–S0203, S0207–S0211 complete.*

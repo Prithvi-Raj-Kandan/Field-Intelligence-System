@@ -59,6 +59,38 @@ class VisitSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class VisitListItem(VisitSummary):
+    """Manager list row with blocker count."""
+
+    blocker_count: int = 0
+
+
+class PaginatedVisitsResponse(BaseModel):
+    items: list[VisitListItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class FindingDetail(DebriefItem):
+    id: int
+    category: str | None = None
+
+
+class ManagerVisitDetail(VisitSummary):
+    """Manager drill-down with resolved media URLs."""
+
+    stakeholders: str
+    raw_notes: str
+    note_image_paths: list[str] = Field(default_factory=list)
+    field_photo_paths: list[str] = Field(default_factory=list)
+    voice_memo_paths: list[str] = Field(default_factory=list)
+    note_image_urls: list[str] = Field(default_factory=list)
+    field_photo_urls: list[str] = Field(default_factory=list)
+    voice_memo_urls: list[str] = Field(default_factory=list)
+    findings: list[FindingDetail] = Field(default_factory=list)
+
+
 class VisitDetail(VisitSummary):
     stakeholders: str
     raw_notes: str

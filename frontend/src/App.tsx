@@ -69,6 +69,7 @@ export default function App() {
 
           <Route element={<ProtectedRoute role="manager" />}>
             <Route path="/manager" element={<ManagerPage />} />
+            <Route path="/dashboard" element={<ManagerPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
