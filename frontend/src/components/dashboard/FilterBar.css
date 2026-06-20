@@ -2,8 +2,8 @@
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 .filter-bar__heading {

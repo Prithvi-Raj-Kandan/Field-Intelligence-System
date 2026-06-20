@@ -1,15 +1,19 @@
 import type { ReactNode } from "react";
-import { Button } from "../components/Button";
-import { useAuth } from "../context/AuthContext";
+import { NavLink } from "react-router-dom";
 import "./ManagerLayout.css";
 
 interface ManagerLayoutProps {
   children: ReactNode;
 }
 
-export function ManagerLayout({ children }: ManagerLayoutProps) {
-  const { logout, user } = useAuth();
+const navItems = [
+  { to: "/manager", label: "Dashboard", end: true },
+  { to: "/manager/visits", label: "Visits", end: false },
+  { to: "/manager/workers", label: "Workers", end: false },
+  { to: "/manager/profile", label: "Profile", end: false },
+];
 
+export function ManagerLayout({ children }: ManagerLayoutProps) {
   return (
     <div className="manager-layout">
       <header className="manager-layout__header">
@@ -18,11 +22,20 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
           <h1 className="manager-layout__title">Field Intelligence</h1>
         </div>
         <nav className="manager-layout__nav">
-          <span className="manager-layout__nav-active">Dashboard</span>
-          <span className="manager-layout__user">{user?.email}</span>
-          <Button variant="ghost" onClick={logout}>
-            Sign out
-          </Button>
+          <div className="manager-layout__tabs">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `manager-layout__tab${isActive ? " manager-layout__tab--active" : ""}`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
         </nav>
       </header>
       <main className="manager-layout__main">{children}</main>

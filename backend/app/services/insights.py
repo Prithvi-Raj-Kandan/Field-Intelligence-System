@@ -11,6 +11,8 @@ from app.schemas.insight import (
     BlockerInsightItem,
     BlockerInsightsResponse,
     InsightSummaryResponse,
+    RecurringBlockerItem,
+    RecurringBlockersResponse,
     SentimentTrendItem,
     SentimentTrendResponse,
 )
@@ -22,6 +24,7 @@ def _visit_filters(
     date_to: date | None,
     program_area: str | None,
     location: str | None,
+    worker_id: int | None = None,
 ):
     clauses = []
     if date_from is not None:
@@ -32,7 +35,15 @@ def _visit_filters(
         clauses.append(Visit.program_area == program_area.strip())
     if location:
         clauses.append(Visit.location.ilike(f"%{location.strip()}%"))
+    if worker_id is not None:
+        clauses.append(Visit.user_id == worker_id)
     return clauses
+
+
+def _region_from_location(location: str) -> str:
+    if " - " in location:
+        return location.split(" - ", 1)[0].strip()
+    return location.strip()
 
 
 def get_insight_summary(
@@ -42,12 +53,14 @@ def get_insight_summary(
     date_to: date | None = None,
     program_area: str | None = None,
     location: str | None = None,
+    worker_id: int | None = None,
 ) -> InsightSummaryResponse:
     filters = _visit_filters(
         date_from=date_from,
         date_to=date_to,
         program_area=program_area,
         location=location,
+        worker_id=worker_id,
     )
 
     total = db.scalar(select(func.count()).select_from(Visit).where(*filters)) or 0
@@ -90,6 +103,7 @@ def get_blocker_insights(
     date_to: date | None = None,
     program_area: str | None = None,
     location: str | None = None,
+    worker_id: int | None = None,
     group_by: str = "location",
 ) -> BlockerInsightsResponse:
     filters = _visit_filters(
@@ -97,6 +111,7 @@ def get_blocker_insights(
         date_to=date_to,
         program_area=program_area,
         location=location,
+        worker_id=worker_id,
     )
 
     if group_by == "program_area":
@@ -131,6 +146,48 @@ def get_blocker_insights(
     return BlockerInsightsResponse(items=items)
 
 
+def get_recurring_blockers(
+    db: Session,
+    *,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    program_area: str | None = None,
+    location: str | None = None,
+    worker_id: int | None = None,
+) -> RecurringBlockersResponse:
+    """Aggregate blockers by text across visits, with region linkage."""
+    filters = _visit_filters(
+        date_from=date_from,
+        date_to=date_to,
+        program_area=program_area,
+        location=location,
+        worker_id=worker_id,
+    )
+
+    stmt = (
+        select(Finding.text, Visit.id, Visit.location)
+        .join(Visit, Finding.visit_id == Visit.id)
+        .where(Finding.type == "blocker", *filters)
+    )
+
+    aggregated: dict[str, dict[str, set]] = {}
+    for text, visit_id, visit_location in db.execute(stmt).all():
+        bucket = aggregated.setdefault(text, {"visit_ids": set(), "regions": set()})
+        bucket["visit_ids"].add(visit_id)
+        bucket["regions"].add(_region_from_location(visit_location))
+
+    items = [
+        RecurringBlockerItem(
+            blocker_text=text,
+            count=len(data["visit_ids"]),
+            regions=sorted(data["regions"]),
+        )
+        for text, data in aggregated.items()
+    ]
+    items.sort(key=lambda item: (-item.count, item.blocker_text))
+    return RecurringBlockersResponse(items=items)
+
+
 def get_sentiment_trend(
     db: Session,
     *,
@@ -138,6 +195,7 @@ def get_sentiment_trend(
     date_to: date | None = None,
     program_area: str | None = None,
     location: str | None = None,
+    worker_id: int | None = None,
     interval: str = "week",
 ) -> SentimentTrendResponse:
     filters = _visit_filters(
@@ -145,6 +203,7 @@ def get_sentiment_trend(
         date_to=date_to,
         program_area=program_area,
         location=location,
+        worker_id=worker_id,
     )
 
     if interval == "day":

@@ -175,6 +175,7 @@ def list_visits(
     date_to: Annotated[date | None, Query()] = None,
     program_area: Annotated[str | None, Query()] = None,
     location: Annotated[str | None, Query()] = None,
+    worker_id: Annotated[int | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginatedVisitsResponse:
@@ -186,6 +187,7 @@ def list_visits(
         date_to=date_to,
         program_area=program_area,
         location=location,
+        worker_id=worker_id,
         page=page,
         page_size=page_size,
     )

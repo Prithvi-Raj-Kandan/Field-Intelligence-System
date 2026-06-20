@@ -1,0 +1,44 @@
+.recurring-blockers-wrap {
+  overflow-x: auto;
+}
+
+.recurring-blockers {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.recurring-blockers th,
+.recurring-blockers td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.recurring-blockers th button {
+  background: none;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  color: var(--color-text);
+}
+
+.recurring-blockers__count {
+  font-weight: 600;
+  color: var(--color-secondary);
+  white-space: nowrap;
+  width: 5rem;
+}
+
+.recurring-blockers__regions {
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.recurring-blockers__muted {
+  color: var(--color-text-secondary);
+  margin: 0;
+}

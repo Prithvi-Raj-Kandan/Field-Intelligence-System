@@ -7,14 +7,35 @@
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.manager-visits-toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  max-width: 480px;
+}
+
+@media (min-width: 640px) {
+  .manager-visits-toolbar {
+    max-width: 520px;
+  }
 }
 
 .manager-dashboard__panel h3 {
   margin: 0 0 var(--space-4);
   font-size: 1rem;
   font-weight: 600;
+}
+
+.manager-dashboard__panel-desc {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 .manager-dashboard__muted {

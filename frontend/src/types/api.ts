@@ -102,6 +102,7 @@ export interface InsightQueryParams {
   date_to?: string;
   program_area?: string;
   location?: string;
+  worker_id?: number;
 }
 
 export interface InsightSummary {
@@ -121,6 +122,16 @@ export interface BlockerInsightsResponse {
   items: BlockerInsightItem[];
 }
 
+export interface RecurringBlockerItem {
+  blocker_text: string;
+  count: number;
+  regions: string[];
+}
+
+export interface RecurringBlockersResponse {
+  items: RecurringBlockerItem[];
+}
+
 export interface SentimentTrendItem {
   period: string;
   positive: number;
@@ -134,6 +145,7 @@ export interface SentimentTrendResponse {
 
 export interface VisitListItem extends VisitSummary {
   blocker_count: number;
+  worker_email?: string | null;
 }
 
 export interface PaginatedVisitsResponse {
@@ -158,4 +170,18 @@ export interface ManagerVisitDetail extends VisitSummary {
   field_photo_urls: string[];
   voice_memo_urls: string[];
   findings: FindingDetail[];
+}
+
+export interface WorkerProfile {
+  id: number;
+  email: string;
+  visit_count: number;
+  negative_sentiment_pct: number;
+  most_common_blocker: string | null;
+  most_common_blocker_count: number;
+  last_visit_date: string | null;
+}
+
+export interface WorkerListResponse {
+  items: WorkerProfile[];
 }

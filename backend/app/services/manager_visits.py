@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.finding import Finding
+from app.models.user import User
 from app.models.visit import Visit
 from app.schemas.debrief import DebriefItem
 from app.schemas.visit import (
@@ -22,6 +23,7 @@ def _visit_filters(
     date_to: date | None,
     program_area: str | None,
     location: str | None,
+    worker_id: int | None = None,
 ):
     clauses = []
     if date_from is not None:
@@ -32,6 +34,8 @@ def _visit_filters(
         clauses.append(Visit.program_area == program_area.strip())
     if location:
         clauses.append(Visit.location.ilike(f"%{location.strip()}%"))
+    if worker_id is not None:
+        clauses.append(Visit.user_id == worker_id)
     return clauses
 
 
@@ -51,6 +55,7 @@ def list_visits_for_manager(
     date_to: date | None = None,
     program_area: str | None = None,
     location: str | None = None,
+    worker_id: int | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> PaginatedVisitsResponse:
@@ -61,13 +66,15 @@ def list_visits_for_manager(
         date_to=date_to,
         program_area=program_area,
         location=location,
+        worker_id=worker_id,
     )
 
     total = db.scalar(select(func.count()).select_from(Visit).where(*filters)) or 0
 
     blocker_count = _blocker_count_subquery()
     stmt = (
-        select(Visit, blocker_count.label("blocker_count"))
+        select(Visit, User.email, blocker_count.label("blocker_count"))
+        .join(User, Visit.user_id == User.id)
         .where(*filters)
         .order_by(Visit.visit_date.desc(), Visit.created_at.desc())
         .offset((page - 1) * page_size)
@@ -75,7 +82,7 @@ def list_visits_for_manager(
     )
 
     items: list[VisitListItem] = []
-    for visit, count in db.execute(stmt).all():
+    for visit, worker_email, count in db.execute(stmt).all():
         items.append(
             VisitListItem(
                 id=visit.id,
@@ -85,6 +92,7 @@ def list_visits_for_manager(
                 sentiment=visit.sentiment,
                 created_at=visit.created_at,
                 blocker_count=int(count or 0),
+                worker_email=worker_email,
             )
         )
 

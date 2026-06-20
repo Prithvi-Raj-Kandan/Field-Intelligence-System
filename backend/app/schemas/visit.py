@@ -60,9 +60,10 @@ class VisitSummary(BaseModel):
 
 
 class VisitListItem(VisitSummary):
-    """Manager list row with blocker count."""
+    """Manager list row with blocker count and worker."""
 
     blocker_count: int = 0
+    worker_email: str | None = None
 
 
 class PaginatedVisitsResponse(BaseModel):

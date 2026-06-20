@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 
 from pydantic import BaseModel, Field
 
@@ -8,6 +8,7 @@ class InsightFilters(BaseModel):
     date_to: date | None = None
     program_area: str | None = None
     location: str | None = None
+    worker_id: int | None = None
 
 
 class InsightSummaryResponse(BaseModel):
@@ -25,6 +26,16 @@ class BlockerInsightItem(BaseModel):
 
 class BlockerInsightsResponse(BaseModel):
     items: list[BlockerInsightItem]
+
+
+class RecurringBlockerItem(BaseModel):
+    blocker_text: str
+    count: int = Field(description="Number of visits where this blocker was reported")
+    regions: list[str] = Field(description="Distinct regions where this blocker occurs")
+
+
+class RecurringBlockersResponse(BaseModel):
+    items: list[RecurringBlockerItem]
 
 
 class SentimentTrendItem(BaseModel):
