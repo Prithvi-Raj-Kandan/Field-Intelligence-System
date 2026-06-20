@@ -29,6 +29,32 @@ EXTENSION_FOR_MIME = {
     "image/heif": ".heif",
 }
 
+GEMINI_AUDIO_MIMES = frozenset(
+    {
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/webm",
+        "audio/ogg",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/aac",
+    }
+)
+
+AUDIO_EXTENSION_FOR_MIME = {
+    "audio/mpeg": ".mp3",
+    "audio/mp3": ".mp3",
+    "audio/wav": ".wav",
+    "audio/x-wav": ".wav",
+    "audio/webm": ".webm",
+    "audio/ogg": ".ogg",
+    "audio/mp4": ".m4a",
+    "audio/x-m4a": ".m4a",
+    "audio/aac": ".aac",
+}
+
 
 def _normalize_declared_mime(declared: str | None) -> str | None:
     if not declared:
@@ -99,3 +125,44 @@ def resolve_image_mime(
 
 def extension_for_mime(mime_type: str) -> str:
     return EXTENSION_FOR_MIME.get(mime_type, ".jpg")
+
+
+def resolve_audio_mime(
+    data: bytes,
+    *,
+    filename: str | None = None,
+    declared: str | None = None,
+) -> str:
+    if not data:
+        raise ValueError("Empty file")
+
+    declared_norm = _normalize_declared_mime(declared)
+    if declared_norm in GEMINI_AUDIO_MIMES:
+        return "audio/mpeg" if declared_norm == "audio/mp3" else declared_norm
+
+    if filename:
+        guessed, _ = mimetypes.guess_type(filename)
+        guessed_norm = _normalize_declared_mime(guessed)
+        if guessed_norm in GEMINI_AUDIO_MIMES:
+            return "audio/mpeg" if guessed_norm == "audio/mp3" else guessed_norm
+
+        suffix = Path(filename).suffix.lower()
+        suffix_map = {
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".webm": "audio/webm",
+            ".ogg": "audio/ogg",
+            ".m4a": "audio/mp4",
+            ".aac": "audio/aac",
+        }
+        if suffix_map.get(suffix):
+            return suffix_map[suffix]
+
+    raise ValueError(
+        f"Unsupported audio type (declared={declared!r}, filename={filename!r}). "
+        "Use MP3, WAV, WebM, OGG, or M4A."
+    )
+
+
+def extension_for_audio_mime(mime_type: str) -> str:
+    return AUDIO_EXTENSION_FOR_MIME.get(mime_type, ".mp3")

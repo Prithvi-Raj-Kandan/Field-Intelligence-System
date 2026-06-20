@@ -7,7 +7,9 @@ from app.config import settings
 from app.storage.base import SavedUpload, StorageBackend
 from app.utils.image_mime import (
     GEMINI_IMAGE_MIMES,
+    extension_for_audio_mime,
     extension_for_mime,
+    resolve_audio_mime,
     resolve_image_mime,
 )
 
@@ -35,20 +37,29 @@ class LocalStorageBackend(StorageBackend):
         if len(content) > MAX_FILE_SIZE_BYTES:
             raise StorageError("File exceeds maximum size of 10 MB")
 
+        folder = folder.strip("/\\")
+        is_audio = folder.startswith("audio")
+
         try:
-            mime_type = resolve_image_mime(
-                content,
-                filename=file.filename,
-                declared=file.content_type,
-            )
+            if is_audio:
+                mime_type = resolve_audio_mime(
+                    content,
+                    filename=file.filename,
+                    declared=file.content_type,
+                )
+                extension = extension_for_audio_mime(mime_type)
+            else:
+                mime_type = resolve_image_mime(
+                    content,
+                    filename=file.filename,
+                    declared=file.content_type,
+                )
+                if mime_type not in GEMINI_IMAGE_MIMES:
+                    raise ValueError(f"Unsupported file type: {mime_type}")
+                extension = extension_for_mime(mime_type)
         except ValueError as exc:
             raise StorageError(str(exc)) from exc
 
-        if mime_type not in GEMINI_IMAGE_MIMES:
-            raise StorageError(f"Unsupported file type: {mime_type}")
-
-        extension = extension_for_mime(mime_type)
-        folder = folder.strip("/\\")
         target_dir = self.upload_root / folder
         target_dir.mkdir(parents=True, exist_ok=True)
 

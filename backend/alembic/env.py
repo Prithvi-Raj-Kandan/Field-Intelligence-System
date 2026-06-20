@@ -16,7 +16,7 @@ load_dotenv(_project_root / ".env")
 
 from app.config import settings  # noqa: E402
 from app.database import Base  # noqa: E402
-from app.models import Finding, User, Visit  # noqa: F401, E402
+from app.models import Finding, User, Visit, VisitSession  # noqa: F401, E402
 
 config = context.config
 

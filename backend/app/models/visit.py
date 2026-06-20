@@ -13,6 +13,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
 
 from app.database import Base
 
@@ -40,8 +41,9 @@ class Visit(Base):
     program_area: Mapped[str] = mapped_column(String(255), nullable=False)
     stakeholders: Mapped[str] = mapped_column(Text, nullable=False, default="")
     raw_notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    note_image_path: Mapped[str | None] = mapped_column(String(512))
-    voice_memo_path: Mapped[str | None] = mapped_column(String(512))
+    note_image_paths: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    field_photo_paths: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    voice_memo_paths: Mapped[list | None] = mapped_column(JSON, nullable=True)
     sentiment: Mapped[str | None] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

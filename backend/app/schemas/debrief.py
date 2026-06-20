@@ -15,12 +15,12 @@ class VisitStructuredInput(BaseModel):
 class DebriefItem(BaseModel):
     type: Literal["finding", "blocker", "follow_up"]
     text: str
-    source: Literal["text", "photo"] = "text"
+    source: Literal["text", "photo", "voice"] = "text"
 
 
 class DebriefResult(BaseModel):
     """
-    AI debrief summary — four sections that power the manager dashboard.
+    AI debrief summary — four sections that power the manager analytics dashboard.
 
     UI label              | JSON field   | Saved to
     ----------------------|--------------|---------------------------

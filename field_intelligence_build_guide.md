@@ -146,7 +146,7 @@ Selected via `STORAGE_BACKEND=local|s3` env var.
 
 ### Upload flows
 
-**Local:** Client → `POST /visits/draft` (multipart) → FastAPI writes to `./uploads/images/{uuid}.jpg` → stores relative path in DB.
+**Local:** Client → `POST /visits/preprocess` (structured + notes) → optional edit when `needs_review` → `POST /visits/debrief` (`session_id` + context photos/voice) → review → `POST /visits/save` (`session_id`). Frontend passes `session_id` between steps — no manual copy/paste.
 
 **Production:** Same API → FastAPI `put_object` to S3 → stores object key (e.g. `images/{uuid}.jpg`) in DB.
 
@@ -348,7 +348,7 @@ Base URL: `http://localhost:8000` (local) or `https://<api-domain>` (production)
 
 ### Visits (field_worker)
 
-#### `POST /visits/draft`
+#### `POST /visits/preprocess` *(step 1)*
 
 **Auth:** `field_worker`
 
@@ -357,86 +357,78 @@ Base URL: `http://localhost:8000` (local) or `https://<api-domain>` (production)
 | Field | Type | Required |
 |---|---|---|
 | `location` | string | yes |
-| `visit_date` | date (YYYY-MM-DD) | yes |
+| `visit_date` | date | yes |
 | `program_area` | string | yes |
 | `stakeholders` | string | yes |
-| `raw_notes` | string | no (if image provided) |
-| `note_image` | file (image/jpeg, image/png) | no |
+| `raw_notes` | string | no* |
+| `note_images` | file[] | no* |
+
+\* At least one of `raw_notes` or `note_images` required. Field context photos and voice memos are **not** uploaded here.
 
 **Response 200:**
 ```json
 {
-  "transcription": "Met with village council. Main issue is broken irrigation canal...",
-  "note_image_path": "images/a1b2c3.jpg",
-  "draft_id": "temp-uuid-for-session"
+  "session_id": "uuid",
+  "raw_notes": "Typed and/or transcribed note text",
+  "needs_review": true
 }
 ```
 
-**Logic:**
-- If `note_image` present → multimodal Gemini call transcribes handwriting → return transcription.
-- If only `raw_notes` → return `raw_notes` as transcription unchanged.
-- Save uploaded image via `StorageBackend`; return path.
+`needs_review` is `true` when note images were transcribed (show edit screen). `false` when the worker typed notes directly (skip edit, go to debrief on Next).
 
-**Errors:** `400` missing required fields, `413` file too large, `422` unsupported file type
+Creates a `visit_sessions` row — frontend stores `session_id` and passes it on every subsequent step.
 
 ---
 
-#### `POST /visits/debrief`
+#### `POST /visits/debrief` *(step 2)*
+
+**Auth:** `field_worker`
+
+**Request:** `multipart/form-data`
+
+| Field | Type | Required |
+|---|---|---|
+| `session_id` | string | yes |
+| `raw_notes` | string | no (omit to use session value; send when edited) |
+| `field_photos` | file[] | no |
+| `voice_memos` | file[] | no |
+
+Field photos and voice memos are sent **directly to Gemini** — not transcribed to text.
+
+**Response 200:**
+```json
+{
+  "session_id": "uuid",
+  "debrief": {
+    "sentiment": "negative",
+    "findings": [{ "type": "finding", "text": "...", "source": "photo" }],
+    "blockers": [{ "type": "blocker", "text": "...", "source": "voice" }],
+    "follow_ups": [{ "type": "follow_up", "text": "...", "source": "text" }]
+  }
+}
+```
+
+---
+
+#### `POST /visits/save` *(step 3)*
 
 **Auth:** `field_worker`
 
 **Request:**
 ```json
 {
-  "location": "Region Y - Village A",
-  "visit_date": "2026-06-18",
-  "program_area": "Water Access",
-  "stakeholders": "Village council, local farmer cooperative",
-  "raw_notes": "Confirmed transcription text here...",
-  "note_image_path": "images/a1b2c3.jpg"
+  "session_id": "uuid-from-workflow",
+  "raw_notes": "Optional final edit to notes",
+  "debrief": {
+    "sentiment": "negative",
+    "findings": [{ "type": "finding", "text": "...", "source": "text" }],
+    "blockers": [{ "type": "blocker", "text": "...", "source": "photo" }],
+    "follow_ups": [{ "type": "follow_up", "text": "...", "source": "text" }]
+  }
 }
 ```
 
-**Response 200:**
-```json
-{
-  "sentiment": "negative",
-  "findings": [
-    { "type": "finding", "text": "Community engaged and willing to participate", "source": "text" },
-    { "type": "finding", "text": "Irrigation canal damaged in 3 sections", "source": "photo" }
-  ],
-  "blockers": [
-    { "type": "blocker", "text": "Broken irrigation canal blocking water access", "source": "photo" }
-  ],
-  "follow_ups": [
-    { "type": "follow_up", "text": "Schedule engineering assessment within 2 weeks", "source": "text" }
-  ]
-}
-```
-
----
-
-#### `POST /visits/save`
-
-**Auth:** `field_worker`
-
-**Request:**
-```json
-{
-  "location": "Region Y - Village A",
-  "visit_date": "2026-06-18",
-  "program_area": "Water Access",
-  "stakeholders": "Village council, local farmer cooperative",
-  "raw_notes": "Confirmed transcription...",
-  "note_image_path": "images/a1b2c3.jpg",
-  "sentiment": "negative",
-  "findings": [
-    { "type": "finding", "text": "...", "source": "text" },
-    { "type": "blocker", "text": "...", "source": "photo" },
-    { "type": "follow_up", "text": "...", "source": "text" }
-  ]
-}
-```
+Structured fields and media paths are loaded from the session — frontend only sends `session_id` plus any edits.
 
 **Response 201:**
 ```json
@@ -914,7 +906,7 @@ Isolated AI service using the **Gemini API** with two functions: `transcribe_ima
 
 ---
 
-### S0107 — POST /visits/draft
+### S0107 — POST /visits/analyze (unified capture)
 
 | Field | Value |
 |---|---|
@@ -924,28 +916,31 @@ Isolated AI service using the **Gemini API** with two functions: `transcribe_ima
 
 **Description**
 
-Accept visit form + optional image. If image present, transcribe via Gemini. Return transcription for user review.
+Single multipart endpoint: structured fields + typed notes + note photos + field photos + voice memos. Transcribe notes/audio, use field photos as debrief context, return combined `raw_notes` + four-section debrief preview.
 
 **Acceptance Criteria**
 
-- [ ] Multipart form parsed correctly
-- [ ] Image saved via storage backend before AI call
-- [ ] Returns transcription + `note_image_path`
-- [ ] Text-only submission returns `raw_notes` unchanged
+- [ ] Multipart form with multiple file arrays (`note_images`, `field_photos`, `voice_memos`)
+- [ ] Note images saved to `images/notes/`, field photos to `images/field/`, audio to `audio/`
+- [ ] Returns `raw_notes`, all media paths, and full `debrief` JSON
+- [ ] Field photos included in Gemini multimodal debrief call
 - [ ] Requires `field_worker` role
+- [ ] `/visits/draft` and `/visits/debrief` kept as deprecated wrappers
 
-**Files to create**
+**Files**
 
-- `backend/app/routers/visits.py` (draft handler)
-- `backend/app/schemas/visit.py`
+- `backend/app/routers/visits.py` — `POST /visits/analyze`
+- `backend/app/services/visit_processor.py`
+- `backend/app/schemas/visit.py` — `AnalyzeVisitResponse`
+- `scripts/test_analyze.py`
 
 **Definition of Done**
 
-Postman/curl test: upload image → receive transcription string.
+`python scripts/test_analyze.py` passes; Swagger upload of note + field photos produces debrief using both text and visuals.
 
 ---
 
-### S0108 — POST /visits/debrief
+### S0108 — POST /visits/debrief *(deprecated)*
 
 | Field | Value |
 |---|---|
@@ -955,18 +950,16 @@ Postman/curl test: upload image → receive transcription string.
 
 **Description**
 
-Take confirmed `raw_notes` + metadata; return structured debrief JSON.
+Legacy JSON debrief preview without field photos. Superseded by `POST /visits/analyze`.
 
 **Acceptance Criteria**
 
-- [ ] Calls `generate_debrief()` with confirmed notes
-- [ ] Returns sentiment, findings, blockers, follow_ups arrays
-- [ ] Does not persist to DB (preview only)
-- [ ] Requires `field_worker` role
+- [ ] Still callable for backward compatibility
+- [ ] Marked deprecated in OpenAPI
 
 **Definition of Done**
 
-POST sample notes → receive valid debrief JSON with all four sections.
+POST sample notes → receive valid debrief JSON (text-only path).
 
 ---
 
