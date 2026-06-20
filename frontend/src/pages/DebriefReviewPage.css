@@ -1,0 +1,131 @@
+.debrief-loading {
+  text-align: center;
+  padding: var(--space-12) var(--space-4);
+}
+
+.debrief-loading__spinner {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-6);
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.debrief-loading__sub {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.debrief-loading__error {
+  color: var(--color-danger);
+}
+
+.debrief-review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding-bottom: var(--space-8);
+}
+
+.debrief-review__sentiment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+.debrief-review__error {
+  color: var(--color-danger);
+}
+
+.debrief-review__actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.debrief-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.debrief-list__item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.debrief-list__input {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.debrief-list__remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.debrief-list__add {
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-2) 0;
+}
+
+.success-page {
+  text-align: center;
+  padding: var(--space-10) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.success-page__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--color-secondary-light);
+  color: var(--color-success);
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.success-page h2 {
+  font-size: 1.5rem;
+}
+
+.success-page p {
+  color: var(--color-text-secondary);
+  max-width: 32ch;
+  margin: 0;
+}
+
+.success-page .btn {
+  max-width: 320px;
+}

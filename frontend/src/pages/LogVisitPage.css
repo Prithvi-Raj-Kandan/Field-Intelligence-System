@@ -1,0 +1,33 @@
+.log-visit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding-bottom: var(--space-4);
+}
+
+.log-visit__intro {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.log-visit__error {
+  color: var(--color-danger);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.log-visit__footer {
+  position: sticky;
+  bottom: calc(var(--nav-height) + var(--space-2));
+  padding-top: var(--space-4);
+  background: linear-gradient(transparent, var(--color-bg) 24%);
+}
+
+@media (min-width: 768px) {
+  .log-visit__footer {
+    position: static;
+    background: none;
+  }
+}

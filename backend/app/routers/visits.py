@@ -2,17 +2,24 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.middleware.auth import require_role
 from app.models.user import User
 from app.schemas.debrief import VisitStructuredInput
+from app.models.finding import Finding
+from app.models.visit import Visit
+from app.schemas.debrief import DebriefItem
 from app.schemas.visit import (
     DebriefResponse,
+    GalleryMediaItem,
     PreprocessVisitResponse,
     SaveVisitRequest,
     SaveVisitResponse,
+    VisitDetail,
+    VisitSummary,
 )
 from app.services.visit_processor import (
     generate_visit_debrief,
@@ -63,6 +70,96 @@ def _map_session_error(exc: Exception) -> HTTPException:
     raise exc
 
 
+def _merge_note_uploads(
+    note_image: UploadFile | None,
+    note_images: list[UploadFile],
+) -> list[UploadFile]:
+    merged = list(note_images)
+    if note_image and note_image.filename:
+        merged.insert(0, note_image)
+    return merged
+
+
+@router.get("/mine", response_model=list[VisitSummary])
+def list_my_visits(
+    current_user: Annotated[User, Depends(field_worker_required)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[VisitSummary]:
+    visits = db.scalars(
+        select(Visit)
+        .where(Visit.user_id == current_user.id)
+        .order_by(Visit.visit_date.desc(), Visit.created_at.desc())
+    ).all()
+    return list(visits)
+
+
+@router.get("/mine/gallery", response_model=list[GalleryMediaItem])
+def list_my_gallery(
+    current_user: Annotated[User, Depends(field_worker_required)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[GalleryMediaItem]:
+    visits = db.scalars(
+        select(Visit).where(Visit.user_id == current_user.id).order_by(Visit.created_at.desc())
+    ).all()
+    items: list[GalleryMediaItem] = []
+    for visit in visits:
+        for path in visit.note_image_paths or []:
+            items.append(
+                GalleryMediaItem(
+                    visit_id=visit.id,
+                    path=path,
+                    media_type="note",
+                    location=visit.location,
+                    visit_date=visit.visit_date,
+                )
+            )
+        for path in visit.field_photo_paths or []:
+            items.append(
+                GalleryMediaItem(
+                    visit_id=visit.id,
+                    path=path,
+                    media_type="field",
+                    location=visit.location,
+                    visit_date=visit.visit_date,
+                )
+            )
+    return items
+
+
+@router.get("/mine/{visit_id}", response_model=VisitDetail)
+def get_my_visit(
+    visit_id: int,
+    current_user: Annotated[User, Depends(field_worker_required)],
+    db: Annotated[Session, Depends(get_db)],
+) -> VisitDetail:
+    visit = db.scalar(
+        select(Visit)
+        .options(selectinload(Visit.findings))
+        .where(Visit.id == visit_id, Visit.user_id == current_user.id)
+    )
+    if visit is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visit not found")
+
+    findings = [
+        DebriefItem(type=f.type, text=f.text, source=f.source)  # type: ignore[arg-type]
+        for f in visit.findings
+    ]
+    return VisitDetail(
+        id=visit.id,
+        location=visit.location,
+        visit_date=visit.visit_date,
+        program_area=visit.program_area,
+        sentiment=visit.sentiment,
+        created_at=visit.created_at,
+        stakeholders=visit.stakeholders,
+        raw_notes=visit.raw_notes,
+        note_image_paths=visit.note_image_paths or [],
+        field_photo_paths=visit.field_photo_paths or [],
+        voice_memo_paths=visit.voice_memo_paths or [],
+        findings=findings,
+    )
+
+
 @router.post(
     "/preprocess",
     response_model=PreprocessVisitResponse,
@@ -78,6 +175,10 @@ async def preprocess_visit(
     raw_notes: Annotated[
         str | None,
         Form(description="Typed free-form notes"),
+    ] = None,
+    note_image: Annotated[
+        UploadFile | None,
+        File(description="Single note photo (Swagger-friendly)"),
     ] = None,
     note_images: Annotated[
         list[UploadFile],
@@ -99,7 +200,7 @@ async def preprocess_visit(
         result = await preprocess_freeform_notes(
             structured=structured,
             typed_notes=(raw_notes or "").strip(),
-            note_images=note_images,
+            note_images=_merge_note_uploads(note_image, note_images),
         )
         session = create_preprocess_session(
             db,
@@ -139,10 +240,18 @@ async def create_visit_debrief(
         str | None,
         Form(description="Edited notes — omit to use session value"),
     ] = None,
+    field_photo: Annotated[
+        UploadFile | None,
+        File(description="Single field photo (Swagger-friendly)"),
+    ] = None,
     field_photos: Annotated[
         list[UploadFile],
         File(description="Field context photos — interpreted directly, not transcribed"),
     ] = [],
+    voice_memo: Annotated[
+        UploadFile | None,
+        File(description="Single voice memo (Swagger-friendly)"),
+    ] = None,
     voice_memos: Annotated[
         list[UploadFile],
         File(description="Voice memos — interpreted directly, not transcribed"),
@@ -160,8 +269,8 @@ async def create_visit_debrief(
             raise SessionStateError("Visit session was already saved")
 
         field_paths, voice_paths = await save_context_media(
-            field_photos=field_photos,
-            voice_memos=voice_memos,
+            field_photos=_merge_note_uploads(field_photo, field_photos),
+            voice_memos=_merge_note_uploads(voice_memo, voice_memos),
         )
 
         notes = raw_notes.strip() if raw_notes is not None else session.raw_notes

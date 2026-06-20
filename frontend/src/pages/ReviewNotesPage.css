@@ -1,0 +1,23 @@
+.review-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.review-notes__hint {
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.review-notes__error {
+  color: var(--color-danger);
+  margin: 0;
+}
+
+.review-notes__actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}

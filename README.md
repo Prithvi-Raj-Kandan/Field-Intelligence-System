@@ -63,15 +63,21 @@ Stop-Process -Id <PID> -Force
 
 Or use a different port: `uvicorn app.main:app --reload --port 8001`
 
-### 4. Frontend (from S0115 onward)
+### 4. Frontend
 
 ```bash
 cd frontend
+copy .env.example .env.local   # Windows — sets VITE_API_URL
 npm install
 npm run dev
 ```
 
-### 5. Run database migrations (S0102+)
+Open http://localhost:5173 — landing page → sign in as `worker@ngo.org` / `demo1234`.
+
+**Worker app:** Log Visit · Previous Visits · Gallery · Settings (bottom nav).  
+**Flow:** Log form → review notes (if photo uploaded) → AI debrief → save.
+
+### 5. Run database migrations
 
 ```bash
 cd backend

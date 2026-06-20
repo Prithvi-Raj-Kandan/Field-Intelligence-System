@@ -1,6 +1,9 @@
+from datetime import date, datetime
+from uuid import uuid4
+
 from pydantic import BaseModel, Field
 
-from app.schemas.debrief import DebriefResult
+from app.schemas.debrief import DebriefItem, DebriefResult
 
 
 class PreprocessVisitResponse(BaseModel):
@@ -34,3 +37,33 @@ class SaveVisitRequest(BaseModel):
 class SaveVisitResponse(BaseModel):
     visit_id: int
     message: str = "Visit saved successfully"
+
+
+class VisitSummary(BaseModel):
+    id: int
+    location: str
+    visit_date: date
+    program_area: str
+    sentiment: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VisitDetail(VisitSummary):
+    stakeholders: str
+    raw_notes: str
+    note_image_paths: list[str] = Field(default_factory=list)
+    field_photo_paths: list[str] = Field(default_factory=list)
+    voice_memo_paths: list[str] = Field(default_factory=list)
+    findings: list[DebriefItem] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}
+
+
+class GalleryMediaItem(BaseModel):
+    visit_id: int
+    path: str
+    media_type: str
+    location: str
+    visit_date: date
