@@ -7,6 +7,7 @@ from google.genai import types
 
 from app.config import settings
 from app.schemas.debrief import DebriefResult, VisitStructuredInput
+from app.utils.image_mime import MIME_ALIASES, resolve_image_mime
 
 logger = logging.getLogger(__name__)
 
@@ -113,16 +114,47 @@ def _build_debrief_prompt(
     return "\n\n".join(sections)
 
 
+def _normalize_mime_for_gemini(mime_type: str) -> str:
+    base = mime_type.split(";")[0].strip().lower()
+    return MIME_ALIASES.get(base, base)
+
+
+def _extract_response_text(response: Any) -> str:
+    if response.text and response.text.strip():
+        return response.text.strip()
+
+    chunks: list[str] = []
+    for candidate in getattr(response, "candidates", None) or []:
+        content = getattr(candidate, "content", None)
+        if not content:
+            continue
+        for part in getattr(content, "parts", None) or []:
+            text = getattr(part, "text", None)
+            if text and text.strip():
+                chunks.append(text.strip())
+
+    return "\n".join(chunks).strip()
+
+
 def transcribe_image(
     image_bytes: bytes,
     *,
     mime_type: str = "image/jpeg",
     context: VisitStructuredInput | dict[str, str] | None = None,
     model: str | None = None,
+    filename: str | None = None,
 ) -> str:
     client = _get_client()
     model = model or settings.gemini_model
     structured = _normalize_structured(context)
+
+    resolved_mime = resolve_image_mime(
+        image_bytes,
+        filename=filename,
+        declared=mime_type,
+    )
+    gemini_mime = _normalize_mime_for_gemini(resolved_mime)
+
     context_lines: list[str] = []
     if structured:
         context_lines = [
@@ -136,10 +168,12 @@ def transcribe_image(
     if context_block:
         user_text = f"{user_text}\n\nStructured visit context:\n{context_block}"
 
+    logger.info("Transcribing image with MIME %s (model=%s)", gemini_mime, model)
+
     response = client.models.generate_content(
         model=model,
         contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+            types.Part.from_bytes(data=image_bytes, mime_type=gemini_mime),
             user_text,
         ],
         config=types.GenerateContentConfig(
@@ -147,9 +181,15 @@ def transcribe_image(
             temperature=0.2,
         ),
     )
-    text = (response.text or "").strip()
+    text = _extract_response_text(response)
     if not text:
-        raise RuntimeError("Gemini returned an empty transcription")
+        finish = None
+        candidates = getattr(response, "candidates", None) or []
+        if candidates:
+            finish = getattr(candidates[0], "finish_reason", None)
+        raise RuntimeError(
+            f"Gemini returned an empty transcription (finish_reason={finish!r}, mime={gemini_mime})"
+        )
     return text
 
 

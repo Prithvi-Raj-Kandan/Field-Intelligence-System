@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.middleware.auth import get_current_user
 from app.models.user import User
-from app.routers import auth, media
+from app.routers import auth, media, visits
 
 app = FastAPI(
     title="Field Intelligence System",
@@ -22,6 +22,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(media.router)
+app.include_router(visits.router)
 
 
 @app.get("/health")

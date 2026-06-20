@@ -4,15 +4,14 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from app.config import settings
-from app.storage.base import StorageBackend
+from app.storage.base import SavedUpload, StorageBackend
+from app.utils.image_mime import (
+    GEMINI_IMAGE_MIMES,
+    extension_for_mime,
+    resolve_image_mime,
+)
 
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png"}
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
-
-CONTENT_TYPE_EXTENSIONS = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-}
 
 
 class StorageError(ValueError):
@@ -31,22 +30,24 @@ class LocalStorageBackend(StorageBackend):
             raise StorageError("Invalid file path")
         return full_path
 
-    async def save(self, file: UploadFile, folder: str) -> str:
-        content_type = file.content_type or ""
-        if content_type not in ALLOWED_IMAGE_TYPES:
-            raise StorageError(f"Unsupported file type: {content_type or 'unknown'}")
-
+    async def save_upload(self, file: UploadFile, folder: str) -> SavedUpload:
         content = await file.read()
         if len(content) > MAX_FILE_SIZE_BYTES:
             raise StorageError("File exceeds maximum size of 10 MB")
-        if len(content) == 0:
-            raise StorageError("Empty file")
 
-        extension = CONTENT_TYPE_EXTENSIONS.get(content_type)
-        if extension is None:
-            suffix = Path(file.filename or "").suffix.lower()
-            extension = suffix if suffix in {".jpg", ".jpeg", ".png"} else ".jpg"
+        try:
+            mime_type = resolve_image_mime(
+                content,
+                filename=file.filename,
+                declared=file.content_type,
+            )
+        except ValueError as exc:
+            raise StorageError(str(exc)) from exc
 
+        if mime_type not in GEMINI_IMAGE_MIMES:
+            raise StorageError(f"Unsupported file type: {mime_type}")
+
+        extension = extension_for_mime(mime_type)
         folder = folder.strip("/\\")
         target_dir = self.upload_root / folder
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -56,7 +57,7 @@ class LocalStorageBackend(StorageBackend):
         full_path = self._resolve_path(relative_path)
         full_path.write_bytes(content)
         await file.close()
-        return relative_path
+        return SavedUpload(path=relative_path, mime_type=mime_type)
 
     async def get_url(self, path: str) -> str:
         return f"/media/{path}"

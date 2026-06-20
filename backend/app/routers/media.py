@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.storage.local import StorageError
+from app.utils.image_mime import GEMINI_IMAGE_MIMES, resolve_image_mime
 
 router = APIRouter(tags=["media"])
 
@@ -31,4 +32,11 @@ async def serve_media(file_path: str) -> FileResponse:
     if not full_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
-    return FileResponse(full_path)
+    media_type = resolve_image_mime(
+        full_path.read_bytes(),
+        filename=full_path.name,
+    )
+    if media_type not in GEMINI_IMAGE_MIMES:
+        media_type = "application/octet-stream"
+
+    return FileResponse(full_path, media_type=media_type)
