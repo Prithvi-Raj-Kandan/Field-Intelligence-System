@@ -29,6 +29,8 @@ class S3StorageBackend(StorageBackend):
             raise StorageError("S3_BUCKET is required when STORAGE_BACKEND=s3")
 
         session_kwargs: dict = {"region_name": settings.aws_region}
+        if settings.s3_endpoint_url:
+            session_kwargs["endpoint_url"] = settings.s3_endpoint_url
         if settings.aws_access_key_id and settings.aws_secret_access_key:
             session_kwargs["aws_access_key_id"] = settings.aws_access_key_id
             session_kwargs["aws_secret_access_key"] = settings.aws_secret_access_key

@@ -1,0 +1,56 @@
+# DigitalOcean App Platform spec (optional).
+# Create app via Console using backend/Dockerfile, or: doctl apps create --spec .do/app.yaml
+#
+# Replace YOUR_GITHUB_REPO before using with doctl.
+
+name: fieldintel-api
+region: sgp
+
+services:
+  - name: api
+    dockerfile_path: Dockerfile
+    source_dir: backend
+    github:
+      repo: YOUR_GITHUB_ORG/Field-Intelligence-System
+      branch: main
+      deploy_on_push: true
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    envs:
+      - key: ENVIRONMENT
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: S3_BUCKET
+        value: fieldintel-media
+        type: SECRET
+      - key: AWS_REGION
+        value: sgp1
+      - key: S3_ENDPOINT_URL
+        value: https://sgp1.digitaloceanspaces.com
+      - key: AWS_ACCESS_KEY_ID
+        type: SECRET
+      - key: AWS_SECRET_ACCESS_KEY
+        type: SECRET
+      - key: DATABASE_URL
+        type: SECRET
+      - key: JWT_SECRET
+        type: SECRET
+      - key: GEMINI_TRANSCRIBE_API_KEY
+        type: SECRET
+      - key: GEMINI_DEBRIEF_API_KEY
+        type: SECRET
+      - key: CORS_ORIGINS
+        value: https://field-intelligence-system.vercel.app
+      - key: ALLOW_MANAGER_REGISTRATION
+        value: "false"
