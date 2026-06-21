@@ -47,9 +47,17 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     return user
 
 
-def create_user(db: Session, *, email: str, password: str, role: str) -> User:
+def create_user(
+    db: Session,
+    *,
+    email: str,
+    password: str,
+    role: str,
+    name: str,
+) -> User:
     user = User(
         email=email,
+        name=name.strip(),
         password_hash=hash_password(password),
         role=role,
     )

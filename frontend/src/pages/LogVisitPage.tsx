@@ -112,8 +112,8 @@ export function LogVisitPage() {
     <WorkerLayout title="Log a visit">
       <form className="log-visit animate-in" onSubmit={handleSubmit}>
         <p className="log-visit__intro">
-          Record structured visit data and free-form notes. Context photos and voice memos are added
-          at the debrief step.
+          Record structured visit data and free-form notes. Voice memos are transcribed and merged
+          into your notes before debrief. Context photos are added at the debrief step.
         </p>
 
         {pendingResume ? (

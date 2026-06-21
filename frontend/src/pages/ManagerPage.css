@@ -1,46 +1,90 @@
-.manager-page {
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-6);
-  background: var(--color-bg);
+.manager-dashboard__error {
+  color: var(--color-danger);
+  margin: 0 0 var(--space-4);
 }
 
-.manager-page__card {
-  max-width: 480px;
+.manager-dashboard__panel {
   background: var(--color-bg-elevated);
-  padding: var(--space-8);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
   border: 1px solid var(--color-border);
-}
-
-.manager-page__brand {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-primary);
-  margin: 0 0 var(--space-2);
-}
-
-.manager-page__card h1 {
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
   margin-bottom: var(--space-4);
 }
 
-.manager-page__card p {
-  color: var(--color-text-secondary);
-  line-height: 1.6;
-}
-
-.manager-page__actions {
-  display: flex;
+.manager-visits-toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
-  margin-top: var(--space-6);
-  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+  max-width: 480px;
 }
 
-.manager-page__actions a {
-  text-decoration: none;
+@media (min-width: 640px) {
+  .manager-visits-toolbar {
+    max-width: 520px;
+  }
+}
+
+.manager-dashboard__panel h3 {
+  margin: 0 0 var(--space-4);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.manager-dashboard__panel-desc {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.manager-dashboard__muted {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.manager-visits-table-wrap {
+  overflow-x: auto;
+}
+
+.manager-visits-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.manager-visits-table th,
+.manager-visits-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.manager-visits-table th {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.manager-visits-table__row--clickable {
+  cursor: pointer;
+}
+
+.manager-visits-table__email {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.manager-panel__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.manager-panel__header-row h3 {
+  margin: 0;
 }

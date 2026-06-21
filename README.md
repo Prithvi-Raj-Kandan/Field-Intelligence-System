@@ -72,7 +72,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — landing page → sign in as `worker@ngo.org` / `demo1234`.
+Open http://localhost:5173 — landing page → sign in as `worker@ngo.org` with the demo password from `.env.local` (`DEMO_WORKER_PASSWORD`).
 
 **Worker app:** Log Visit · Previous Visits · Gallery · Settings (bottom nav).  
 **Flow:** Log form → review notes (if photo uploaded) → AI debrief → save.
@@ -91,7 +91,7 @@ alembic upgrade head
 python scripts/seed_users.py
 ```
 
-Demo logins: `worker@ngo.org` / `manager@ngo.org` — password `demo1234`
+Demo logins: `worker@ngo.org` / `manager@ngo.org` — passwords set via `DEMO_WORKER_PASSWORD` and `DEMO_MANAGER_PASSWORD` in `.env.local` (see `.env.example`).
 
 ### 7. Verify Postgres connection
 
@@ -125,8 +125,19 @@ Field-Intelligence-System/
 
 | Email | Password | Role |
 |---|---|---|
-| `worker@ngo.org` | `demo1234` | field_worker |
-| `manager@ngo.org` | `demo1234` | manager |
+| `worker@ngo.org` | `DEMO_WORKER_PASSWORD` | field_worker |
+| `manager@ngo.org` | `DEMO_MANAGER_PASSWORD` | manager |
+
+---
+
+## Security & production
+
+- **Dual Gemini keys:** Set `GEMINI_TRANSCRIBE_API_KEY` (note images + voice) and `GEMINI_DEBRIEF_API_KEY` (debrief JSON) in `.env.local` to split API quotas.
+- **Auth cookies:** JWT is stored in an httpOnly cookie (not accessible from browser console). Sign out via Profile/Settings.
+- **Media:** `/media/*` requires authentication; workers only see their own visit files, managers see all.
+- **HTTPS:** Set `ENVIRONMENT=production` and `COOKIE_SECURE=true`; terminate TLS at your load balancer (App Runner / ALB). The API redirects HTTP→HTTPS when `X-Forwarded-Proto: http`.
+- **Registration:** Public signup creates field workers only. Set `ALLOW_MANAGER_REGISTRATION=true` only for local admin setup.
+- **Demo passwords:** Use strong values in `DEMO_WORKER_PASSWORD` / `DEMO_MANAGER_PASSWORD` — avoid breached passwords like `demo1234`.
 
 ---
 

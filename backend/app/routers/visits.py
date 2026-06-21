@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -11,10 +11,12 @@ from app.models.user import User
 from app.models.visit import Visit
 from app.models.visit_session import VisitSession
 from app.models.finding import Finding
-from app.schemas.debrief import DebriefItem, VisitStructuredInput
+from app.schemas.debrief import VisitStructuredInput
 from app.schemas.visit import (
     DebriefResponse,
     GalleryMediaItem,
+    ManagerVisitDetail,
+    PaginatedVisitsResponse,
     RecordingMediaItem,
     PreprocessVisitResponse,
     SaveVisitRequest,
@@ -23,6 +25,12 @@ from app.schemas.visit import (
     VisitSessionStatusResponse,
     VisitSummary,
 )
+from app.services.manager_visits import (
+    get_visit_for_manager,
+    list_visits_for_manager,
+    visit_to_worker_detail,
+)
+from app.services.visit_export import export_visits_csv
 from app.services.visit_processor import (
     generate_visit_debrief,
     preprocess_freeform_notes,
@@ -43,6 +51,7 @@ from app.services.visit_session import (
 router = APIRouter(prefix="/visits", tags=["visits"])
 
 field_worker_required = require_role("field_worker")
+manager_required = require_role("manager")
 
 
 def _structured_from_form(
@@ -156,24 +165,75 @@ def get_my_visit(
     if visit is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visit not found")
 
-    findings = [
-        DebriefItem(type=f.type, text=f.text, source=f.source)  # type: ignore[arg-type]
-        for f in visit.findings
-    ]
-    return VisitDetail(
-        id=visit.id,
-        location=visit.location,
-        visit_date=visit.visit_date,
-        program_area=visit.program_area,
-        sentiment=visit.sentiment,
-        created_at=visit.created_at,
-        stakeholders=visit.stakeholders,
-        raw_notes=visit.raw_notes,
-        note_image_paths=visit.note_image_paths or [],
-        field_photo_paths=visit.field_photo_paths or [],
-        voice_memo_paths=visit.voice_memo_paths or [],
-        findings=findings,
+    return VisitDetail(**visit_to_worker_detail(visit))
+
+
+@router.get("", response_model=PaginatedVisitsResponse)
+def list_visits(
+    current_user: Annotated[User, Depends(manager_required)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
+    program_area: Annotated[str | None, Query()] = None,
+    location: Annotated[str | None, Query()] = None,
+    worker_id: Annotated[int | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> PaginatedVisitsResponse:
+    """Paginated visit list for managers (all workers)."""
+    _ = current_user
+    return list_visits_for_manager(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        program_area=program_area,
+        location=location,
+        worker_id=worker_id,
+        page=page,
+        page_size=page_size,
     )
+
+
+@router.get("/export.csv")
+def export_visits(
+    current_user: Annotated[User, Depends(manager_required)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
+    program_area: Annotated[str | None, Query()] = None,
+    location: Annotated[str | None, Query()] = None,
+    worker_id: Annotated[int | None, Query()] = None,
+) -> Response:
+    """Download filtered visits as CSV."""
+    _ = current_user
+    csv_body = export_visits_csv(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        program_area=program_area,
+        location=location,
+        worker_id=worker_id,
+    )
+    return Response(
+        content=csv_body,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="visits-export.csv"'},
+    )
+
+
+@router.get("/{visit_id}", response_model=ManagerVisitDetail)
+def get_visit(
+    visit_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(manager_required)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ManagerVisitDetail:
+    """Full visit detail for manager drill-down."""
+    _ = current_user
+    detail = get_visit_for_manager(db, visit_id, base_url=str(request.base_url))
+    if detail is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visit not found")
+    return detail
 
 
 @router.get("/sessions/{session_id}", response_model=VisitSessionStatusResponse)
@@ -318,7 +378,7 @@ async def create_visit_debrief(
         )
 
         notes = raw_notes.strip() if raw_notes is not None else session.raw_notes
-        debrief = generate_visit_debrief(
+        result = generate_visit_debrief(
             structured=structured_from_session(session),
             raw_notes=notes,
             note_image_paths=session.note_image_paths or [],
@@ -329,10 +389,10 @@ async def create_visit_debrief(
         update_session_for_debrief(
             db,
             session,
-            raw_notes=raw_notes,
+            raw_notes=result.raw_notes,
             field_photo_paths=field_paths,
             voice_memo_paths=voice_paths,
-            debrief=debrief,
+            debrief=result.debrief,
         )
     except (SessionNotFoundError, SessionAccessError, SessionStateError, ValueError) as exc:
         raise _map_session_error(exc) from exc
@@ -348,7 +408,7 @@ async def create_visit_debrief(
             detail=f"Debrief generation failed: {exc}",
         ) from exc
 
-    return DebriefResponse(session_id=session.session_id, debrief=debrief)
+    return DebriefResponse(session_id=session.session_id, debrief=result.debrief)
 
 
 @router.post(

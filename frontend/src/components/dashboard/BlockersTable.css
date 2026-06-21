@@ -1,0 +1,44 @@
+.blockers-table-wrap {
+  overflow-x: auto;
+}
+
+.blockers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.blockers-table th,
+.blockers-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.blockers-table th button {
+  background: none;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  color: var(--color-text);
+}
+
+.blockers-table__count {
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.blockers-table__row--clickable {
+  cursor: pointer;
+}
+
+.blockers-table__row--clickable:hover {
+  background: var(--color-surface-muted);
+}
+
+.blockers-table__muted {
+  color: var(--color-text-secondary);
+  margin: 0;
+}

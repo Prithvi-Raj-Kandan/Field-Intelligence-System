@@ -10,6 +10,9 @@ import { LandingPage } from "./pages/LandingPage";
 import { LogVisitPage } from "./pages/LogVisitPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ManagerPage } from "./pages/ManagerPage";
+import { ManagerVisitsPage } from "./pages/ManagerVisitsPage";
+import { ManagerProfilePage } from "./pages/ManagerProfilePage";
+import { ManagerWorkersPage } from "./pages/ManagerWorkersPage";
 import { PreviousVisitsPage } from "./pages/PreviousVisitsPage";
 import { RecordingsPage } from "./pages/RecordingsPage";
 import { ReviewNotesPage } from "./pages/ReviewNotesPage";
@@ -18,7 +21,8 @@ import { SignupPage } from "./pages/SignupPage";
 import { VisitDetailPage } from "./pages/VisitDetailPage";
 
 function HomeRedirect() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
+  if (loading) return <p style={{ padding: "2rem", textAlign: "center" }}>Loading…</p>;
   if (!isAuthenticated) return <LandingPage />;
   if (user?.role === "manager") return <Navigate to="/manager" replace />;
   return <Navigate to="/app/log" replace />;
@@ -69,6 +73,10 @@ export default function App() {
 
           <Route element={<ProtectedRoute role="manager" />}>
             <Route path="/manager" element={<ManagerPage />} />
+            <Route path="/manager/visits" element={<ManagerVisitsPage />} />
+            <Route path="/manager/workers" element={<ManagerWorkersPage />} />
+            <Route path="/manager/profile" element={<ManagerProfilePage />} />
+            <Route path="/dashboard" element={<ManagerPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

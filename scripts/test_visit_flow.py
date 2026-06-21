@@ -1,5 +1,6 @@
 """Full workflow: preprocess -> debrief -> save (session-linked)."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -20,7 +21,7 @@ Women's group wants training before monsoon. Council requested engineering visit
 def _login(client: TestClient) -> str:
     response = client.post(
         "/auth/login",
-        json={"email": "worker@ngo.org", "password": "demo1234"},
+        json={"email": "worker@ngo.org", "password": os.environ.get("DEMO_WORKER_PASSWORD", "FieldIntel-Worker-2026!")},
     )
     assert response.status_code == 200, response.text
     return response.json()["access_token"]
