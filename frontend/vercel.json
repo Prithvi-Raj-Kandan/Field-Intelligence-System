@@ -2,27 +2,27 @@
   "rewrites": [
     {
       "source": "/auth/:path*",
-      "destination": "https://YOUR_APP_RUNNER_URL/auth/:path*"
+      "destination": "http://fieldintel-alb-1258564554.ap-southeast-2.elb.amazonaws.com/auth/:path*"
     },
     {
       "source": "/visits/:path*",
-      "destination": "https://YOUR_APP_RUNNER_URL/visits/:path*"
+      "destination": "http://fieldintel-alb-1258564554.ap-southeast-2.elb.amazonaws.com/auth/:path*"
     },
     {
       "source": "/insights/:path*",
-      "destination": "https://YOUR_APP_RUNNER_URL/insights/:path*"
+      "destination": "http://fieldintel-alb-1258564554.ap-southeast-2.elb.amazonaws.com/auth/:path*"
     },
     {
       "source": "/workers/:path*",
-      "destination": "https://YOUR_APP_RUNNER_URL/workers/:path*"
+      "destination": "http://fieldintel-alb-1258564554.ap-southeast-2.elb.amazonaws.com/auth/:path*"
     },
     {
       "source": "/media/:path*",
-      "destination": "https://YOUR_APP_RUNNER_URL/media/:path*"
+      "destination": "http://fieldintel-alb-1258564554.ap-southeast-2.elb.amazonaws.com/auth/:path*"
     },
     {
       "source": "/health",
-      "destination": "https://YOUR_APP_RUNNER_URL/health"
+      "destination": "http://fieldintel-alb-1258564554.ap-southeast-2.elb.amazonaws.com/auth/health"
     },
     {
       "source": "/((?!assets/).*)",
