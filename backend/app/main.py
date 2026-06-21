@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.config import settings
 from app.middleware.auth import get_current_user
@@ -12,7 +13,12 @@ app = FastAPI(
     title="Field Intelligence System",
     description="NGO field visit debrief API",
     version="0.1.0",
+    # Avoid 307 redirects on /workers vs /workers/ when proxied through Vercel.
+    redirect_slashes=False,
 )
+
+# Trust X-Forwarded-* from App Platform / load balancers so redirects use HTTPS.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 if settings.is_production:
     app.add_middleware(HTTPSRedirectMiddleware)

@@ -210,6 +210,7 @@ After DO works:
 | Login 500, DB errors in logs | `DATABASE_URL` must include `?sslmode=require`; check trusted sources |
 | Upload fails | Spaces keys + `S3_ENDPOINT_URL` + bucket name |
 | 401 after login | `COOKIE_SECURE=true`, use Vercel HTTPS + rewrites |
+| Workers/visits fail, dashboard OK | Vercel rewrite 307 to DO drops cookies — use exact `/workers` + `/visits` rewrites; backend `redirect_slashes=False` + `--proxy-headers` |
 | CORS errors | Add exact Vercel URL to `CORS_ORIGINS` |
 | `/health` OK, login fails | Seed users; verify `DATABASE_URL` |
 
