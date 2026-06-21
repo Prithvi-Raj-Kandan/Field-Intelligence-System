@@ -2,27 +2,27 @@
   "rewrites": [
     {
       "source": "/auth/:path*",
-      "destination": "https://YOUR_DO_APP_URL/auth/:path*"
+      "destination": "https://field-intel-app-9etyb.ondigitalocean.app/auth/:path*"
     },
     {
       "source": "/visits/:path*",
-      "destination": "https://YOUR_DO_APP_URL/visits/:path*"
+      "destination": "https://field-intel-app-9etyb.ondigitalocean.app/visits/:path*"
     },
     {
       "source": "/insights/:path*",
-      "destination": "https://YOUR_DO_APP_URL/insights/:path*"
+      "destination": "https://field-intel-app-9etyb.ondigitalocean.app/insights/:path*"
     },
     {
       "source": "/workers/:path*",
-      "destination": "https://YOUR_DO_APP_URL/workers/:path*"
+      "destination": "https://field-intel-app-9etyb.ondigitalocean.app/workers/:path*"
     },
     {
       "source": "/media/:path*",
-      "destination": "https://YOUR_DO_APP_URL/media/:path*"
+      "destination": "https://field-intel-app-9etyb.ondigitalocean.app/media/:path*"
     },
     {
       "source": "/health",
-      "destination": "https://YOUR_DO_APP_URL/health"
+      "destination": "https://field-intel-app-9etyb.ondigitalocean.app/health"
     },
     {
       "source": "/((?!assets/).*)",
