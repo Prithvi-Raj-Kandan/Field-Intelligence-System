@@ -17,7 +17,9 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     s3_bucket: str = ""
     aws_region: str = "ap-south-1"
-    # Optional — omit on App Runner (uses instance role). Set locally to test S3 without IAM role.
+    # DigitalOcean Spaces (and other S3-compatible stores): e.g. https://sgp1.digitaloceanspaces.com
+    s3_endpoint_url: str = ""
+    # Required for Spaces; optional on AWS (uses instance role / default credential chain).
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     # Transcription: note images + voice memos (separate quota)
