@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     )
     storage_backend: str = "local"
     upload_dir: str = "./uploads"
+    s3_bucket: str = ""
+    aws_region: str = "ap-south-1"
+    # Optional — omit on App Runner (uses instance role). Set locally to test S3 without IAM role.
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
     # Transcription: note images + voice memos (separate quota)
     gemini_transcribe_api_key: str = ""
     gemini_transcribe_model: str = "gemini-2.5-flash"

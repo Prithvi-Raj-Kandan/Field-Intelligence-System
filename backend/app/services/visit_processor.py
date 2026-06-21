@@ -1,11 +1,9 @@
 """Orchestrate visit preprocessing and debrief generation."""
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from fastapi import UploadFile
 
-from app.config import settings
 from app.schemas.debrief import DebriefResult, VisitStructuredInput
 from app.services.ai import generate_debrief, transcribe_audio, transcribe_image
 from app.storage import get_storage_backend
@@ -36,28 +34,25 @@ def _filter_uploads(files: list[UploadFile] | None) -> list[UploadFile]:
     return [f for f in files if f.filename]
 
 
-def _resolve_upload_path(relative_path: str) -> Path:
-    if ".." in relative_path.replace("\\", "/").split("/"):
-        raise ValueError(f"Invalid media path: {relative_path}")
-    full_path = (settings.upload_path / relative_path).resolve()
-    upload_root = settings.upload_path.resolve()
-    if not str(full_path).startswith(str(upload_root)):
-        raise ValueError(f"Invalid media path: {relative_path}")
-    return full_path
+def _read_media_bytes(path: str) -> bytes:
+    storage = get_storage_backend()
+    try:
+        return storage.read_bytes(path)
+    except StorageError as exc:
+        raise ValueError(str(exc)) from exc
 
 
 def _validate_media_paths(paths: list[str]) -> None:
+    storage = get_storage_backend()
     for path in paths:
-        full_path = _resolve_upload_path(path)
-        if not full_path.exists():
+        if not storage.exists(path):
             raise ValueError(f"Media file not found: {path}")
 
 
 def _load_image_media(paths: list[str]) -> list[tuple[bytes, str]]:
     payload: list[tuple[bytes, str]] = []
     for path in paths:
-        full_path = _resolve_upload_path(path)
-        data = full_path.read_bytes()
+        data = _read_media_bytes(path)
         mime = resolve_image_mime(data, filename=path)
         payload.append((data, mime))
     return payload
@@ -66,8 +61,7 @@ def _load_image_media(paths: list[str]) -> list[tuple[bytes, str]]:
 def _load_audio_media(paths: list[str]) -> list[tuple[bytes, str]]:
     payload: list[tuple[bytes, str]] = []
     for path in paths:
-        full_path = _resolve_upload_path(path)
-        data = full_path.read_bytes()
+        data = _read_media_bytes(path)
         mime = resolve_audio_mime(data, filename=path)
         payload.append((data, mime))
     return payload
@@ -110,8 +104,7 @@ def _transcribe_voice_paths(
 ) -> list[str]:
     transcriptions: list[str] = []
     for path in paths:
-        full_path = _resolve_upload_path(path)
-        data = full_path.read_bytes()
+        data = _read_media_bytes(path)
         mime = resolve_audio_mime(data, filename=path)
         text = transcribe_audio(
             data,
@@ -146,7 +139,7 @@ async def preprocess_freeform_notes(
 
     note_transcriptions: list[str] = []
     for saved, upload in zip(saved_notes, note_images, strict=True):
-        image_bytes = (settings.upload_path / saved.path).read_bytes()
+        image_bytes = _read_media_bytes(saved.path)
         text = transcribe_image(
             image_bytes,
             mime_type=saved.mime_type,

@@ -73,6 +73,12 @@ class LocalStorageBackend(StorageBackend):
     async def get_url(self, path: str) -> str:
         return f"/media/{path}"
 
+    def read_bytes(self, path: str) -> bytes:
+        return self._resolve_path(path).read_bytes()
+
+    def exists(self, path: str) -> bool:
+        return self._resolve_path(path).is_file()
+
     async def delete(self, path: str) -> None:
         full_path = self._resolve_path(path)
         if full_path.exists():
