@@ -3,6 +3,7 @@ export type UserRole = "field_worker" | "manager";
 export interface User {
   id: number;
   email: string;
+  name: string;
   role: UserRole;
 }
 
@@ -145,6 +146,7 @@ export interface SentimentTrendResponse {
 
 export interface VisitListItem extends VisitSummary {
   blocker_count: number;
+  worker_name?: string | null;
   worker_email?: string | null;
 }
 
@@ -174,6 +176,7 @@ export interface ManagerVisitDetail extends VisitSummary {
 
 export interface WorkerProfile {
   id: number;
+  name: string;
   email: string;
   visit_count: number;
   negative_sentiment_pct: number;

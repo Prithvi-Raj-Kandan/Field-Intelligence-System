@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.services.auth import decode_access_token, get_user_by_id
@@ -12,11 +13,22 @@ from app.services.auth import decode_access_token, get_user_by_id
 security = HTTPBearer(auto_error=False)
 
 
+def _extract_token(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None,
+) -> str | None:
+    if credentials is not None and credentials.scheme.lower() == "bearer":
+        return credentials.credentials
+    return request.cookies.get(settings.auth_cookie_name)
+
+
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
-    if credentials is None or credentials.scheme.lower() != "bearer":
+    token = _extract_token(request, credentials)
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
@@ -24,7 +36,7 @@ async def get_current_user(
         )
 
     try:
-        payload = decode_access_token(credentials.credentials)
+        payload = decode_access_token(token)
         user_id = int(payload.get("sub", ""))
     except (JWTError, TypeError, ValueError):
         raise HTTPException(

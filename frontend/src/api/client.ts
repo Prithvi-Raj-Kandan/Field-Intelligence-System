@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export class ApiError extends Error {
   constructor(
@@ -10,12 +10,15 @@ export class ApiError extends Error {
   }
 }
 
-function getToken(): string | null {
-  return localStorage.getItem("access_token");
-}
-
 export function mediaUrl(path: string): string {
-  if (path.startsWith("http")) return path;
+  if (path.startsWith("http")) {
+    try {
+      const url = new URL(path);
+      return url.pathname;
+    } catch {
+      return path;
+    }
+  }
   return `/media/${path.replace(/^\//, "")}`;
 }
 
@@ -37,13 +40,15 @@ export async function apiFetch<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
   if (!res.ok) {
     throw new ApiError(await parseError(res), res.status);
   }
@@ -51,25 +56,42 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
-export function setToken(token: string) {
-  localStorage.setItem("access_token", token);
+export async function fetchMediaBlob(path: string): Promise<Blob> {
+  const url = mediaUrl(path);
+  const res = await fetch(`${API_BASE}${url}`, { credentials: "include" });
+  if (!res.ok) {
+    throw new ApiError("Failed to load media", res.status);
+  }
+  return res.blob();
+}
+
+export async function downloadCsv(path: string, filename: string): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, { credentials: "include" });
+  if (!res.ok) {
+    throw new ApiError(await parseError(res), res.status);
+  }
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(objectUrl);
+}
+
+/** @deprecated Token is stored in httpOnly cookie — kept for API test scripts only. */
+export function setToken(_token: string) {
+  /* no-op: auth cookie set by server */
 }
 
 export function clearToken() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("user");
+  /* no-op: use logout endpoint */
 }
 
-export function saveUser(user: object) {
-  localStorage.setItem("user", JSON.stringify(user));
+export function saveUser(_user: object) {
+  /* no-op: user profile loaded from /auth/me */
 }
 
 export function loadUser<T>(): T | null {
-  const raw = localStorage.getItem("user");
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
+  return null;
 }

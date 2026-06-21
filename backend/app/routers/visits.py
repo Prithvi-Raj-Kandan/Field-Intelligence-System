@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -30,6 +30,7 @@ from app.services.manager_visits import (
     list_visits_for_manager,
     visit_to_worker_detail,
 )
+from app.services.visit_export import export_visits_csv
 from app.services.visit_processor import (
     generate_visit_debrief,
     preprocess_freeform_notes,
@@ -193,6 +194,33 @@ def list_visits(
     )
 
 
+@router.get("/export.csv")
+def export_visits(
+    current_user: Annotated[User, Depends(manager_required)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
+    program_area: Annotated[str | None, Query()] = None,
+    location: Annotated[str | None, Query()] = None,
+    worker_id: Annotated[int | None, Query()] = None,
+) -> Response:
+    """Download filtered visits as CSV."""
+    _ = current_user
+    csv_body = export_visits_csv(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        program_area=program_area,
+        location=location,
+        worker_id=worker_id,
+    )
+    return Response(
+        content=csv_body,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="visits-export.csv"'},
+    )
+
+
 @router.get("/{visit_id}", response_model=ManagerVisitDetail)
 def get_visit(
     visit_id: int,
@@ -350,7 +378,7 @@ async def create_visit_debrief(
         )
 
         notes = raw_notes.strip() if raw_notes is not None else session.raw_notes
-        debrief = generate_visit_debrief(
+        result = generate_visit_debrief(
             structured=structured_from_session(session),
             raw_notes=notes,
             note_image_paths=session.note_image_paths or [],
@@ -361,10 +389,10 @@ async def create_visit_debrief(
         update_session_for_debrief(
             db,
             session,
-            raw_notes=raw_notes,
+            raw_notes=result.raw_notes,
             field_photo_paths=field_paths,
             voice_memo_paths=voice_paths,
-            debrief=debrief,
+            debrief=result.debrief,
         )
     except (SessionNotFoundError, SessionAccessError, SessionStateError, ValueError) as exc:
         raise _map_session_error(exc) from exc
@@ -380,7 +408,7 @@ async def create_visit_debrief(
             detail=f"Debrief generation failed: {exc}",
         ) from exc
 
-    return DebriefResponse(session_id=session.session_id, debrief=debrief)
+    return DebriefResponse(session_id=session.session_id, debrief=result.debrief)
 
 
 @router.post(

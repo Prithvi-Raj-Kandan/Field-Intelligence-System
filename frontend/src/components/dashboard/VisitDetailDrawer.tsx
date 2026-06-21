@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getManagerVisit } from "../../api/managerVisits";
 import { ApiError } from "../../api/client";
+import { AuthenticatedAudio, AuthenticatedImage } from "../AuthenticatedMedia";
 import { Button } from "../Button";
 import { SentimentBadge } from "../SentimentBadge";
 import type { DebriefItem, ManagerVisitDetail } from "../../types/api";
@@ -83,23 +84,37 @@ export function VisitDetailDrawer({ visitId, onClose }: VisitDetailDrawerProps) 
               <p className="visit-drawer__notes">{visit.raw_notes}</p>
             </section>
 
-            {visit.note_image_urls.length > 0 ? (
+            {visit.voice_memo_paths.length > 0 ? (
+              <section className="visit-drawer__section">
+                <h4>Voice memos</h4>
+                <ul className="visit-drawer__audio-list">
+                  {visit.voice_memo_paths.map((path, index) => (
+                    <li key={path}>
+                      <span>Recording {index + 1}</span>
+                      <AuthenticatedAudio path={path} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {visit.note_image_paths.length > 0 ? (
               <section className="visit-drawer__section">
                 <h4>Note images</h4>
                 <div className="visit-drawer__images">
-                  {visit.note_image_urls.map((url) => (
-                    <img key={url} src={url} alt="Visit note" loading="lazy" />
+                  {visit.note_image_paths.map((path) => (
+                    <AuthenticatedImage key={path} path={path} alt="Visit note" />
                   ))}
                 </div>
               </section>
             ) : null}
 
-            {visit.field_photo_urls.length > 0 ? (
+            {visit.field_photo_paths.length > 0 ? (
               <section className="visit-drawer__section">
                 <h4>Field photos</h4>
                 <div className="visit-drawer__images">
-                  {visit.field_photo_urls.map((url) => (
-                    <img key={url} src={url} alt="Field photo" loading="lazy" />
+                  {visit.field_photo_paths.map((path) => (
+                    <AuthenticatedImage key={path} path={path} alt="Field photo" />
                   ))}
                 </div>
               </section>

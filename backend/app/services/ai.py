@@ -53,14 +53,26 @@ JSON_REPAIR_PROMPT = (
 )
 
 
-def _require_api_key() -> str:
-    if not settings.gemini_api_key:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-    return settings.gemini_api_key
+def _require_transcribe_api_key() -> str:
+    key = settings.resolved_transcribe_api_key()
+    if not key:
+        raise RuntimeError("GEMINI_TRANSCRIBE_API_KEY (or GEMINI_API_KEY) is not configured")
+    return key
 
 
-def _get_client() -> genai.Client:
-    return genai.Client(api_key=_require_api_key())
+def _require_debrief_api_key() -> str:
+    key = settings.resolved_debrief_api_key()
+    if not key:
+        raise RuntimeError("GEMINI_DEBRIEF_API_KEY (or GEMINI_API_KEY) is not configured")
+    return key
+
+
+def _get_transcribe_client() -> genai.Client:
+    return genai.Client(api_key=_require_transcribe_api_key())
+
+
+def _get_debrief_client() -> genai.Client:
+    return genai.Client(api_key=_require_debrief_api_key())
 
 
 def _gemini_error(exc: ClientError) -> RuntimeError:
@@ -180,8 +192,8 @@ def transcribe_image(
     model: str | None = None,
     filename: str | None = None,
 ) -> str:
-    client = _get_client()
-    model = model or settings.gemini_model
+    client = _get_transcribe_client()
+    model = model or settings.gemini_transcribe_model or settings.gemini_model
     structured = _normalize_structured(context)
 
     resolved_mime = resolve_image_mime(
@@ -240,8 +252,8 @@ def transcribe_audio(
     model: str | None = None,
     filename: str | None = None,
 ) -> str:
-    client = _get_client()
-    model = model or settings.gemini_model
+    client = _get_transcribe_client()
+    model = model or settings.gemini_transcribe_model or settings.gemini_model
     structured = _normalize_structured(context)
 
     resolved_mime = resolve_audio_mime(
@@ -313,10 +325,10 @@ def generate_debrief(
     """
     Build debrief from text notes plus field photos and voice memos interpreted directly.
     """
-    model = model or settings.gemini_model
-    structured_input = _normalize_structured(structured)
+    model = model or settings.gemini_debrief_model or settings.gemini_model
     field_photos = field_photos or []
     voice_memos = voice_memos or []
+    structured_input = _normalize_structured(structured)
     user_prompt = _build_debrief_prompt(
         raw_notes,
         structured_input,
@@ -326,7 +338,7 @@ def generate_debrief(
     )
 
     schema = _clean_json_schema(DebriefResult.model_json_schema())
-    client = _get_client()
+    client = _get_debrief_client()
 
     content_parts: list[Any] = []
     for idx, (image_bytes, mime_type) in enumerate(field_photos):

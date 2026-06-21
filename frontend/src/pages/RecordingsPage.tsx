@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listRecordings } from "../api/visits";
-import { ApiError, mediaUrl } from "../api/client";
+import { ApiError } from "../api/client";
+import { AuthenticatedAudio } from "../components/AuthenticatedMedia";
 import { WorkerLayout } from "../layouts/WorkerLayout";
 import type { RecordingMediaItem } from "../types/api";
 import "./RecordingsPage.css";
@@ -35,7 +36,7 @@ export function RecordingsPage() {
                 <span>{item.visit_date}</span>
                 <span className="recordings__cta">View summary →</span>
               </Link>
-              <audio controls preload="metadata" src={mediaUrl(item.path)} className="recordings__player" />
+              <AuthenticatedAudio path={item.path} className="recordings__player" />
             </li>
           ))}
         </ul>

@@ -3,14 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.middleware.auth import get_current_user
+from app.middleware.https_redirect import HTTPSRedirectMiddleware
 from app.models.user import User
 from app.routers import auth, insights, media, visits, workers
+from app.schemas.auth import UserResponse
 
 app = FastAPI(
     title="Field Intelligence System",
     description="NGO field visit debrief API",
     version="0.1.0",
 )
+
+if settings.is_production:
+    app.add_middleware(HTTPSRedirectMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +37,7 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/auth/me", tags=["auth"])
-def read_current_user(current_user: User = Depends(get_current_user)) -> dict:
-    return {"id": current_user.id, "email": current_user.email, "role": current_user.role}
-
+@app.get("/auth/me", tags=["auth"], response_model=UserResponse, deprecated=True)
+def read_current_user_legacy(current_user: User = Depends(get_current_user)) -> UserResponse:
+    """Legacy route — prefer GET /auth/me on auth router."""
+    return UserResponse.model_validate(current_user)

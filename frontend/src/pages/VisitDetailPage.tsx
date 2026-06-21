@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getVisit } from "../api/visits";
-import { ApiError, mediaUrl } from "../api/client";
+import { ApiError } from "../api/client";
+import { AuthenticatedAudio, AuthenticatedImage } from "../components/AuthenticatedMedia";
 import { Card } from "../components/Card";
 import { SentimentBadge } from "../components/SentimentBadge";
 import { WorkerLayout } from "../layouts/WorkerLayout";
@@ -83,13 +84,9 @@ export function VisitDetailPage() {
           ) : null}
         </header>
 
-        {visit.field_photo_paths.length > 0 ? (
-          <Card title="Context photos">
-            <div className="visit-detail__photos">
-              {visit.field_photo_paths.map((path) => (
-                <img key={path} src={mediaUrl(path)} alt="Field context" loading="lazy" />
-              ))}
-            </div>
+        {visit.raw_notes ? (
+          <Card title="Field notes">
+            <p className="visit-detail__notes">{visit.raw_notes}</p>
           </Card>
         ) : null}
 
@@ -99,10 +96,30 @@ export function VisitDetailPage() {
               {visit.voice_memo_paths.map((path, index) => (
                 <li key={path}>
                   <span className="visit-detail__audio-label">Recording {index + 1}</span>
-                  <audio controls preload="metadata" src={mediaUrl(path)} />
+                  <AuthenticatedAudio path={path} />
                 </li>
               ))}
             </ul>
+          </Card>
+        ) : null}
+
+        {visit.note_image_paths.length > 0 ? (
+          <Card title="Note images">
+            <div className="visit-detail__photos">
+              {visit.note_image_paths.map((path) => (
+                <AuthenticatedImage key={path} path={path} alt="Visit note" />
+              ))}
+            </div>
+          </Card>
+        ) : null}
+
+        {visit.field_photo_paths.length > 0 ? (
+          <Card title="Context photos">
+            <div className="visit-detail__photos">
+              {visit.field_photo_paths.map((path) => (
+                <AuthenticatedImage key={path} path={path} alt="Field context" />
+              ))}
+            </div>
           </Card>
         ) : null}
 
@@ -121,12 +138,6 @@ export function VisitDetailPage() {
             </Card>
           );
         })}
-
-        {visit.raw_notes ? (
-          <Card title="Notes">
-            <p className="visit-detail__notes">{visit.raw_notes}</p>
-          </Card>
-        ) : null}
       </div>
     </WorkerLayout>
   );

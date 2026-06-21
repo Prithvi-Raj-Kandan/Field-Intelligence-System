@@ -101,7 +101,8 @@ export function ManagerWorkersPage() {
                       setAppliedFilters(EMPTY_FILTERS);
                     }}
                   >
-                    <span className="worker-card__email">{worker.email}</span>
+                    <span className="worker-card__email">{worker.name}</span>
+                    <span className="worker-card__stat">{worker.email}</span>
                     <span className="worker-card__stat">{worker.visit_count} visits</span>
                     <span className="worker-card__stat">
                       {worker.negative_sentiment_pct}% negative
@@ -127,9 +128,9 @@ export function ManagerWorkersPage() {
           {selectedWorker ? (
             <>
               <header className="workers-page__header">
-                <h2>{selectedWorker.email}</h2>
+                <h2>{selectedWorker.name}</h2>
                 <p>
-                  {selectedWorker.visit_count} visits logged
+                  {selectedWorker.email} · {selectedWorker.visit_count} visits logged
                   {selectedWorker.last_visit_date
                     ? ` · Last visit ${selectedWorker.last_visit_date}`
                     : ""}

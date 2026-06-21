@@ -156,7 +156,7 @@ export function DebriefGeneratePage() {
         {loading && !error ? (
           <>
             <div className="debrief-loading__spinner" aria-hidden />
-            <p>Analyzing your visit notes and context media…</p>
+            <p>Analyzing notes — transcribing voice memos and generating debrief…</p>
             <p className="debrief-loading__sub">This may take 10–20 seconds</p>
           </>
         ) : null}

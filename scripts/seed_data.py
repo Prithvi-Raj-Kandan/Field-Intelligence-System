@@ -8,6 +8,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -25,9 +26,22 @@ from app.services.auth import create_user, get_user_by_email
 
 SEED_MARKER = "[seed-data]"
 
+DEMO_WORKER_PASSWORD = os.environ.get("DEMO_WORKER_PASSWORD", "FieldIntel-Worker-2026!")
+DEMO_MANAGER_PASSWORD = os.environ.get("DEMO_MANAGER_PASSWORD", "FieldIntel-Manager-2026!")
+
 DEMO_USERS = [
-    {"email": "worker@ngo.org", "password": "demo1234", "role": "field_worker"},
-    {"email": "manager@ngo.org", "password": "demo1234", "role": "manager"},
+    {
+        "email": "worker@ngo.org",
+        "password": DEMO_WORKER_PASSWORD,
+        "role": "field_worker",
+        "name": "Demo Field Worker",
+    },
+    {
+        "email": "manager@ngo.org",
+        "password": DEMO_MANAGER_PASSWORD,
+        "role": "manager",
+        "name": "Demo Manager",
+    },
 ]
 
 
@@ -42,6 +56,7 @@ def seed_users() -> None:
                 email=entry["email"],
                 password=entry["password"],
                 role=entry["role"],
+                name=entry["name"],
             )
     finally:
         db.close()

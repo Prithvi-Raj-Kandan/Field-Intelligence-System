@@ -9,8 +9,8 @@ export function ManagerProfilePage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/");
   };
 
@@ -19,6 +19,10 @@ export function ManagerProfilePage() {
       <div className="manager-profile">
         <Card title="Account">
           <dl className="manager-profile__dl">
+            <div>
+              <dt>Name</dt>
+              <dd>{user?.name}</dd>
+            </div>
             <div>
               <dt>Email</dt>
               <dd>{user?.email}</dd>

@@ -1,0 +1,16 @@
+.auth-media__loading,
+.auth-media__error {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.auth-media__error {
+  color: var(--color-danger);
+}
+
+.auth-media__placeholder {
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  min-height: 120px;
+}

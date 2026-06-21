@@ -1,5 +1,6 @@
 """Smoke test for manager insight endpoints."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -20,8 +21,8 @@ def _login(client: TestClient, email: str, password: str) -> str:
 def main() -> None:
     client = TestClient(app)
 
-    worker_token = _login(client, "worker@ngo.org", "demo1234")
-    manager_token = _login(client, "manager@ngo.org", "demo1234")
+    worker_token = _login(client, "worker@ngo.org", os.environ.get("DEMO_WORKER_PASSWORD", "FieldIntel-Worker-2026!"))
+    manager_token = _login(client, "manager@ngo.org", os.environ.get("DEMO_MANAGER_PASSWORD", "FieldIntel-Manager-2026!"))
 
     worker_res = client.get("/insights/summary", headers={"Authorization": f"Bearer {worker_token}"})
     assert worker_res.status_code == 403, worker_res.text

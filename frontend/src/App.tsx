@@ -21,7 +21,8 @@ import { SignupPage } from "./pages/SignupPage";
 import { VisitDetailPage } from "./pages/VisitDetailPage";
 
 function HomeRedirect() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
+  if (loading) return <p style={{ padding: "2rem", textAlign: "center" }}>Loading…</p>;
   if (!isAuthenticated) return <LandingPage />;
   if (user?.role === "manager") return <Navigate to="/manager" replace />;
   return <Navigate to="/app/log" replace />;

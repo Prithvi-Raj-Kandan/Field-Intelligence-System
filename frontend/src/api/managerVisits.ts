@@ -1,5 +1,5 @@
 import type { InsightQueryParams, ManagerVisitDetail, PaginatedVisitsResponse } from "../types/api";
-import { apiFetch } from "./client";
+import { apiFetch, downloadCsv } from "./client";
 
 function toQuery(
   params: InsightQueryParams & { page?: number; page_size?: number },
@@ -20,4 +20,9 @@ export function listManagerVisits(
 
 export function getManagerVisit(id: number): Promise<ManagerVisitDetail> {
   return apiFetch<ManagerVisitDetail>(`/visits/${id}`);
+}
+
+export function exportVisitsCsv(params: InsightQueryParams = {}): Promise<void> {
+  const query = toQuery(params);
+  return downloadCsv(`/visits/export.csv${query}`, "visits-export.csv");
 }

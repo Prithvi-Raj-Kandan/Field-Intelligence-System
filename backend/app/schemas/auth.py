@@ -10,13 +10,15 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=10)
+    name: str = Field(min_length=1, max_length=255)
     role: Literal["field_worker", "manager"] = "field_worker"
 
 
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
+    name: str
     role: str
 
     model_config = {"from_attributes": True}

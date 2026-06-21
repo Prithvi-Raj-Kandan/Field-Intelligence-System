@@ -73,7 +73,7 @@ def list_visits_for_manager(
 
     blocker_count = _blocker_count_subquery()
     stmt = (
-        select(Visit, User.email, blocker_count.label("blocker_count"))
+        select(Visit, User.name, User.email, blocker_count.label("blocker_count"))
         .join(User, Visit.user_id == User.id)
         .where(*filters)
         .order_by(Visit.visit_date.desc(), Visit.created_at.desc())
@@ -82,7 +82,7 @@ def list_visits_for_manager(
     )
 
     items: list[VisitListItem] = []
-    for visit, worker_email, count in db.execute(stmt).all():
+    for visit, worker_name, worker_email, count in db.execute(stmt).all():
         items.append(
             VisitListItem(
                 id=visit.id,
@@ -92,6 +92,7 @@ def list_visits_for_manager(
                 sentiment=visit.sentiment,
                 created_at=visit.created_at,
                 blocker_count=int(count or 0),
+                worker_name=worker_name,
                 worker_email=worker_email,
             )
         )

@@ -72,6 +72,19 @@
   cursor: pointer;
 }
 
-.manager-visits-table__row--clickable:hover {
-  background: var(--color-surface-muted);
+.manager-visits-table__email {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.manager-panel__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.manager-panel__header-row h3 {
+  margin: 0;
 }

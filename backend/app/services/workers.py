@@ -42,6 +42,7 @@ def list_workers_with_stats(db: Session) -> WorkerListResponse:
         items.append(
             WorkerProfileItem(
                 id=worker.id,
+                name=worker.name,
                 email=worker.email,
                 visit_count=total,
                 negative_sentiment_pct=negative_pct,

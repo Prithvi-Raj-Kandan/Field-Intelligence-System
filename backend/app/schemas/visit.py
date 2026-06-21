@@ -63,6 +63,7 @@ class VisitListItem(VisitSummary):
     """Manager list row with blocker count and worker."""
 
     blocker_count: int = 0
+    worker_name: str | None = None
     worker_email: str | None = None
 
 

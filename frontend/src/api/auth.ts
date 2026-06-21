@@ -1,30 +1,29 @@
-import { apiFetch, saveUser, setToken } from "./client";
-import type { TokenResponse } from "../types/api";
+import { apiFetch } from "./client";
+import type { TokenResponse, User } from "../types/api";
 
 export async function login(email: string, password: string): Promise<TokenResponse> {
-  const data = await apiFetch<TokenResponse>("/auth/login", {
+  return apiFetch<TokenResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
-  setToken(data.access_token);
-  saveUser(data.user);
-  return data;
 }
 
 export async function register(
   email: string,
   password: string,
+  name: string,
   role: "field_worker" | "manager" = "field_worker",
 ): Promise<TokenResponse> {
-  const data = await apiFetch<TokenResponse>("/auth/register", {
+  return apiFetch<TokenResponse>("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password, role }),
+    body: JSON.stringify({ email, password, name, role }),
   });
-  setToken(data.access_token);
-  saveUser(data.user);
-  return data;
 }
 
-export async function fetchMe() {
-  return apiFetch<{ id: number; email: string; role: string }>("/auth/me");
+export async function fetchMe(): Promise<User> {
+  return apiFetch<User>("/auth/me");
+}
+
+export async function logoutApi(): Promise<void> {
+  await apiFetch<void>("/auth/logout", { method: "POST" });
 }

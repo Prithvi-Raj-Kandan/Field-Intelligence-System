@@ -3,16 +3,16 @@ import { Link, useNavigate } from "react-router-dom";
 import { register } from "../api/auth";
 import { ApiError } from "../api/client";
 import { Button } from "../components/Button";
-import { SelectField, TextField } from "../components/Input";
+import { TextField } from "../components/Input";
 import { useAuth } from "../context/AuthContext";
 import "./AuthPage.css";
 
 export function SignupPage() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"field_worker" | "manager">("field_worker");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,9 +21,9 @@ export function SignupPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await register(email, password, role);
+      const res = await register(email, password, name, "field_worker");
       setUser(res.user);
-      navigate(res.user.role === "manager" ? "/manager" : "/app/log");
+      navigate("/app/log");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Registration failed");
     } finally {
@@ -36,8 +36,16 @@ export function SignupPage() {
       <div className="auth-page__card animate-in">
         <p className="auth-page__brand">The/Nudge Institute</p>
         <h1>Create account</h1>
-        <p className="auth-page__hint">Join the field intelligence platform</p>
+        <p className="auth-page__hint">Field worker accounts only — managers are provisioned by admin</p>
         <form className="auth-page__form" onSubmit={handleSubmit}>
+          <TextField
+            label="Full name"
+            type="text"
+            autoComplete="name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
           <TextField
             label="Email"
             type="email"
@@ -51,19 +59,11 @@ export function SignupPage() {
             type="password"
             autoComplete="new-password"
             required
-            minLength={8}
-            hint="At least 8 characters"
+            minLength={10}
+            hint="At least 10 characters — avoid common or breached passwords"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <SelectField
-            label="Role"
-            value={role}
-            onChange={(e) => setRole(e.target.value as "field_worker" | "manager")}
-          >
-            <option value="field_worker">Field worker</option>
-            <option value="manager">Manager</option>
-          </SelectField>
           {error ? <p className="auth-page__error">{error}</p> : null}
           <Button type="submit" fullWidth size="lg" loading={loading}>
             Create account

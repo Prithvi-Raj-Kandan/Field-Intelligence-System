@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listManagerVisits } from "../api/managerVisits";
+import { exportVisitsCsv, listManagerVisits } from "../api/managerVisits";
 import { ApiError } from "../api/client";
 import { FilterBar, type FilterDraft } from "../components/dashboard/FilterBar";
 import { VisitDetailDrawer } from "../components/dashboard/VisitDetailDrawer";
+import { Button } from "../components/Button";
 import { SelectField } from "../components/Input";
 import { SentimentBadge } from "../components/SentimentBadge";
 import { ManagerLayout } from "../layouts/ManagerLayout";
@@ -29,6 +30,7 @@ export function ManagerVisitsPage() {
   const [selectedVisitId, setSelectedVisitId] = useState<number | null>(null);
   const [sentimentFilter, setSentimentFilter] = useState("all");
   const [sort, setSort] = useState<VisitSort>("date_desc");
+  const [exporting, setExporting] = useState(false);
 
   const loadFilterOptions = useCallback(async () => {
     const res = await listManagerVisits({ page: 1, page_size: 100 });
@@ -81,6 +83,17 @@ export function ManagerVisitsPage() {
     setAppliedFilters(EMPTY_FILTERS);
   }
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await exportVisitsCsv(appliedFilters);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <ManagerLayout>
       <FilterBar
@@ -115,7 +128,12 @@ export function ManagerVisitsPage() {
       {error ? <p className="manager-dashboard__error">{error}</p> : null}
 
       <section className="manager-dashboard__panel">
-        <h3>All visits</h3>
+        <div className="manager-panel__header-row">
+          <h3>All visits</h3>
+          <Button variant="secondary" onClick={handleExport} loading={exporting}>
+            Export CSV
+          </Button>
+        </div>
         {loading ? (
           <p className="manager-dashboard__muted">Loading visits…</p>
         ) : displayedVisits.length === 0 ? (
@@ -143,7 +161,17 @@ export function ManagerVisitsPage() {
                     <td>{visit.location}</td>
                     <td>{visit.program_area}</td>
                     <td>{visit.visit_date}</td>
-                    <td>{visit.worker_email ?? "—"}</td>
+                    <td>
+                      {visit.worker_name ? (
+                        <>
+                          {visit.worker_name}
+                          <br />
+                          <span className="manager-visits-table__email">{visit.worker_email}</span>
+                        </>
+                      ) : (
+                        visit.worker_email ?? "—"
+                      )}
+                    </td>
                     <td>
                       {visit.sentiment ? (
                         <SentimentBadge sentiment={visit.sentiment} />

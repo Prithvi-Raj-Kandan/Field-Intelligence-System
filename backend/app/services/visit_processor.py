@@ -7,7 +7,7 @@ from fastapi import UploadFile
 
 from app.config import settings
 from app.schemas.debrief import DebriefResult, VisitStructuredInput
-from app.services.ai import generate_debrief, transcribe_image
+from app.services.ai import generate_debrief, transcribe_audio, transcribe_image
 from app.storage import get_storage_backend
 from app.storage.base import SavedUpload
 from app.storage.local import StorageError
@@ -87,6 +87,42 @@ def _combine_note_text(typed_notes: str, note_transcriptions: list[str]) -> str:
     return typed_notes.strip()
 
 
+def _append_voice_transcriptions(notes: str, voice_transcriptions: list[str]) -> str:
+    if not voice_transcriptions:
+        return notes.strip()
+    if len(voice_transcriptions) == 1:
+        block = f"[Voice memo transcription]\n{voice_transcriptions[0].strip()}"
+    else:
+        parts = [
+            f"Recording {index + 1}:\n{text.strip()}"
+            for index, text in enumerate(voice_transcriptions)
+            if text.strip()
+        ]
+        block = f"[Voice memos — {len(parts)} recordings]\n" + "\n\n".join(parts)
+    if notes.strip():
+        return f"{notes.strip()}\n\n---\n\n{block}"
+    return block
+
+
+def _transcribe_voice_paths(
+    paths: list[str],
+    structured: VisitStructuredInput,
+) -> list[str]:
+    transcriptions: list[str] = []
+    for path in paths:
+        full_path = _resolve_upload_path(path)
+        data = full_path.read_bytes()
+        mime = resolve_audio_mime(data, filename=path)
+        text = transcribe_audio(
+            data,
+            mime_type=mime,
+            context=structured,
+            filename=path,
+        )
+        transcriptions.append(text)
+    return transcriptions
+
+
 async def preprocess_freeform_notes(
     *,
     structured: VisitStructuredInput,
@@ -151,6 +187,12 @@ async def save_context_media(
     )
 
 
+@dataclass
+class DebriefGenerationResult:
+    debrief: DebriefResult
+    raw_notes: str
+
+
 def generate_visit_debrief(
     *,
     structured: VisitStructuredInput,
@@ -158,9 +200,9 @@ def generate_visit_debrief(
     note_image_paths: list[str] | None = None,
     field_photo_paths: list[str] | None = None,
     voice_memo_paths: list[str] | None = None,
-) -> DebriefResult:
+) -> DebriefGenerationResult:
     """
-    Step 2: debrief from text plus field photos and voice memos sent directly to Gemini.
+    Step 2: transcribe voice memos into notes, then debrief from text + field photos.
     """
     note_image_paths = note_image_paths or []
     field_photo_paths = field_photo_paths or []
@@ -169,7 +211,11 @@ def generate_visit_debrief(
     _validate_media_paths(note_image_paths + field_photo_paths + voice_memo_paths)
 
     notes = raw_notes.strip()
-    if not notes and not field_photo_paths and not voice_memo_paths:
+    if voice_memo_paths:
+        voice_texts = _transcribe_voice_paths(voice_memo_paths, structured)
+        notes = _append_voice_transcriptions(notes, voice_texts)
+
+    if not notes and not field_photo_paths:
         raise ValueError("Provide notes or at least one context photo/voice memo")
 
     if not notes:
@@ -178,10 +224,13 @@ def generate_visit_debrief(
             "and attached context media only.]"
         )
 
-    return generate_debrief(
-        notes,
-        structured=structured,
-        has_photo_notes=bool(note_image_paths),
-        field_photos=_load_image_media(field_photo_paths),
-        voice_memos=_load_audio_media(voice_memo_paths),
+    return DebriefGenerationResult(
+        debrief=generate_debrief(
+            notes,
+            structured=structured,
+            has_photo_notes=bool(note_image_paths),
+            field_photos=_load_image_media(field_photo_paths),
+            voice_memos=[],
+        ),
+        raw_notes=notes,
     )

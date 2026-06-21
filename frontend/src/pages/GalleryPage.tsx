@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listGallery } from "../api/visits";
-import { ApiError, mediaUrl } from "../api/client";
+import { ApiError } from "../api/client";
+import { AuthenticatedImage } from "../components/AuthenticatedMedia";
 import { WorkerLayout } from "../layouts/WorkerLayout";
 import type { GalleryMediaItem } from "../types/api";
 import "./GalleryPage.css";
@@ -34,7 +35,7 @@ export function GalleryPage() {
               to={`/app/visits/${item.visit_id}`}
               className="gallery__item"
             >
-              <img src={mediaUrl(item.path)} alt={`${item.location} context`} loading="lazy" />
+              <AuthenticatedImage path={item.path} alt={`${item.location} context`} className="gallery__img" />
               <figcaption>
                 <span className="gallery__tag">Context</span>
                 {item.location}

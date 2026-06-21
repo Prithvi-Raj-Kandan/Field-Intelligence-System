@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class WorkerProfileItem(BaseModel):
     id: int
+    name: str
     email: str
     visit_count: int
     negative_sentiment_pct: float

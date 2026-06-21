@@ -9,8 +9,8 @@ export function SettingsPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/");
   };
 
@@ -20,12 +20,16 @@ export function SettingsPage() {
         <Card title="Account">
           <dl className="settings__dl">
             <div>
+              <dt>Name</dt>
+              <dd>{user?.name}</dd>
+            </div>
+            <div>
               <dt>Email</dt>
               <dd>{user?.email}</dd>
             </div>
             <div>
               <dt>Role</dt>
-              <dd>{user?.role === "field_worker" ? "Field worker" : "Manager"}</dd>
+              <dd>Field worker</dd>
             </div>
           </dl>
         </Card>
