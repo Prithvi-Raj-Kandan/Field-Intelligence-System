@@ -24,5 +24,13 @@ class StorageBackend(ABC):
         """Return a URL or path clients can use to fetch the file."""
 
     @abstractmethod
+    def read_bytes(self, path: str) -> bytes:
+        """Load file contents for AI processing or authenticated media serving."""
+
+    @abstractmethod
+    def exists(self, path: str) -> bool:
+        """Return True when the object is present in storage."""
+
+    @abstractmethod
     async def delete(self, path: str) -> None:
         """Remove a stored file."""
